@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Sign Up</h1>
+{% if message %}<p class="message">{{ message }}</p>{% endif %}
+<form method="post" action="/-/signup">
+    <label for="username">Username</label>
+    <input type="text" id="username" name="username" required minlength="3" maxlength="64">
+    <label for="email">Email (optional)</label>
+    <input type="email" id="email" name="email">
+    <label for="password">Password</label>
+    <input type="password" id="password" name="password" required minlength="8">
+    <button type="submit" class="btn">Sign Up</button>
+</form>
+<p>Already have an account? <a href="/-/login">Login</a></p>
+{% endblock %}

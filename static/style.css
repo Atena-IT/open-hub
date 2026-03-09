@@ -1,0 +1,29 @@
+/* Xet Hub — Minimal CSS */
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;line-height:1.6;color:#24292f;background:#fff}
+.navbar{display:flex;align-items:center;justify-content:space-between;padding:.75rem 2rem;background:#24292f;color:#fff}
+.nav-brand{color:#fff;text-decoration:none;font-weight:700;font-size:1.25rem}
+.nav-links a{color:#c9d1d9;text-decoration:none;margin-left:1.5rem}
+.nav-links a:hover{color:#fff}
+.container{max-width:960px;margin:2rem auto;padding:0 1rem}
+h1,h2{margin-top:0}
+a{color:#0969da}
+.btn{display:inline-block;padding:.5rem 1rem;background:#238636;color:#fff;border:none;border-radius:6px;cursor:pointer;text-decoration:none;font-size:.875rem}
+.btn-secondary{background:#21262d;color:#c9d1d9}
+.btn:hover{opacity:.9}
+form{max-width:400px}
+label{display:block;margin-top:.75rem;font-weight:600}
+input[type="text"],input[type="email"],input[type="password"]{width:100%;padding:.5rem;border:1px solid #d0d7de;border-radius:6px;margin-top:.25rem}
+button[type="submit"]{margin-top:1rem}
+.message{padding:.75rem;background:#ddf4ff;border:1px solid #54aeff;border-radius:6px}
+.repo-list{list-style:none;padding:0}
+.repo-list li{padding:.75rem 0;border-bottom:1px solid #d8dee4}
+.badge{font-size:.75rem;padding:.1rem .5rem;background:#ddf4ff;border-radius:2em;margin-left:.5rem}
+.badge-private{background:#ffeef0;color:#cf222e}
+.desc{color:#57606a;font-size:.875rem;margin:.25rem 0 0}
+.file-table{width:100%;border-collapse:collapse}
+.file-table th,.file-table td{text-align:left;padding:.5rem;border-bottom:1px solid #d8dee4}
+.file-table th{background:#f6f8fa}
+.footer{text-align:center;padding:2rem;color:#57606a;font-size:.875rem;border-top:1px solid #d8dee4;margin-top:3rem}
+.actions{margin:1.5rem 0}
+.actions .btn{margin-right:.5rem}

@@ -1,0 +1,14 @@
+[package]
+name    = "s3-storage"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+common     = { path = "../common" }
+tokio      = { workspace = true }
+bytes      = { workspace = true }
+anyhow     = { workspace = true }
+tracing    = { workspace = true }
+aws-sdk-s3  = "1"
+aws-config  = { version = "1", features = ["behavior-version-latest"] }
+aws-credential-types = "1"

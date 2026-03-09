@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h1><a href="/{{ owner }}">{{ owner }}</a> / {{ repo }}</h1>
+{% if description %}<p>{{ description }}</p>{% endif %}
+
+<h2>Files</h2>
+{% if files %}
+<table class="file-table">
+    <thead><tr><th>Path</th><th>Size</th><th>LFS</th></tr></thead>
+    <tbody>
+    {% for file in files %}
+    <tr>
+        <td><a href="/{{ owner }}/{{ repo }}/resolve/main/{{ file.path }}">{{ file.path }}</a></td>
+        <td>{{ file.size }}</td>
+        <td>{% if file.is_lfs %}Yes{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No files yet. Upload files using the API.</p>
+{% endif %}
+{% endblock %}

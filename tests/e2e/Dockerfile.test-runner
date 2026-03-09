@@ -1,0 +1,11 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install test dependencies
+# hf_xet may fail on some platforms/architectures; that's non-fatal —
+# the Python fallback implementation will be used instead.
+RUN pip install --no-cache-dir requests blake3 lz4 \
+ && pip install --no-cache-dir hf_xet 2>/dev/null || true
+
+CMD ["python3", "/tests/e2e/hf_xet_roundtrip.py"]

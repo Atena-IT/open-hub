@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<h1><a href="/{{ owner }}">{{ owner }}</a> / <a href="/{{ owner }}/{{ repo }}">{{ repo }}</a></h1>
+{% if current_path %}<p>Path: {{ current_path }}</p>{% endif %}
+
+{% if files %}
+<table class="file-table">
+    <thead><tr><th>Path</th><th>Size</th></tr></thead>
+    <tbody>
+    {% for file in files %}
+    <tr>
+        <td>{{ file.path }}</td>
+        <td>{{ file.size }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No files found at this path.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ owner }}</h1>
+{% if repos %}
+<h2>Repositories</h2>
+<ul class="repo-list">
+    {% for repo in repos %}
+    <li>
+        <a href="/{{ repo.full_name }}">{{ repo.name }}</a>
+        <span class="badge">{{ repo.repo_type }}</span>
+        {% if repo.private %}<span class="badge badge-private">private</span>{% endif %}
+        {% if repo.description %}<p class="desc">{{ repo.description }}</p>{% endif %}
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p>No repositories found.</p>
+{% endif %}
+{% endblock %}

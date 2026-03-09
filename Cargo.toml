@@ -1,0 +1,25 @@
+[workspace]
+members = [
+    "crates/common",
+    "crates/db-layer",
+    "crates/s3-storage",
+    "crates/shard-parser",
+    "crates/cas-server",
+    "crates/hub-api",
+    "crates/web-ui",
+    "crates/server",
+]
+resolver = "2"
+
+[workspace.dependencies]
+tokio      = { version = "1",    features = ["full"] }
+serde      = { version = "1",    features = ["derive"] }
+serde_json = "1"
+thiserror  = "1"
+tracing    = "0.1"
+bytes      = "1"
+anyhow     = "1"
+uuid       = { version = "1", features = ["v4", "serde"] }
+chrono     = { version = "0.4", features = ["serde"] }
+axum       = { version = "0.7", features = ["json"] }
+hex        = "0.4"
