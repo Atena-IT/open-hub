@@ -15,6 +15,7 @@ pub struct RepoFileRow {
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn upsert_file(
     pool: &PgPool,
     repo_id: Uuid,

@@ -52,10 +52,22 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq curl git-lfs
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build images with Buildx Bake
+        uses: docker/bake-action@v5
+        with:
+          files: docker-compose.yml
+          load: true
+          set: |
+            *.cache-from=type=gha
+            *.cache-to=type=gha,mode=max
+
       - name: start Docker Compose stack
         run: |
           cp .env.example .env
-          docker compose up -d --build --wait
+          docker compose up -d --wait
 
       - name: run shell E2E tests
         run: |
