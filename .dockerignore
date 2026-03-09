@@ -1,0 +1,8 @@
+.git
+.gitignore
+.github
+target/
+**/*.rs.bk
+recipe.json
+.env
+.env.example

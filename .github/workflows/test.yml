@@ -64,8 +64,10 @@ jobs:
           files: docker-compose.yml
           load: true
           set: |
-            *.cache-from=type=gha
-            *.cache-to=type=gha,mode=max
+            xet-server.cache-from=type=gha,scope=xet-server
+            xet-server.cache-to=type=gha,scope=xet-server,mode=max
+            test-runner.cache-from=type=gha,scope=test-runner
+            test-runner.cache-to=type=gha,scope=test-runner,mode=max
 
       - name: start Docker Compose stack
         run: |
