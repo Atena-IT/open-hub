@@ -1,24 +1,38 @@
-/// script
-requires-python = ">=3.8"
-dependencies = [
-  "huggingface_hub[hf_transfer]",
-]
-///
+# /// script
+# requires-python = ">=3.8"
+# dependencies = [
+#   "huggingface_hub[hf_transfer]",
+#   "requests"
+# ]
+# ///
 import os
+import requests
+import os
+os.environ['HF_ENDPOINT'] = os.environ.get('HF_ENDPOINT', 'http://localhost:8080')
 from huggingface_hub import HfApi, CommitOperationAdd
 
-os.environ["HF_ENDPOINT"] = os.environ.get("HF_ENDPOINT", "http://localhost:8080")
+ENDPOINT = os.environ.get("HF_ENDPOINT", "http://localhost:8080")
+os.environ["HF_ENDPOINT"] = ENDPOINT
 os.environ["CURL_CA_BUNDLE"] = ""
 
+def get_token(username="test-user", password="password"):
+    resp = requests.post(f"{ENDPOINT}/api/auth/register", json={"username": username, "password": password})
+    if resp.status_code == 409:
+        resp = requests.post(f"{ENDPOINT}/api/auth/login", json={"username": username, "password": password})
+    resp.raise_for_status()
+    return resp.json()["token"]
+
 def main():
-    api = HfApi()
+    token = get_token()
+    os.environ["HF_TOKEN"] = token
+    api = HfApi(token=token)
+    
     repo_id = "test-user/test-create-commit"
     print(f"Creating repo {repo_id}...")
     try:
         api.create_repo(repo_id, exist_ok=True, repo_type="model")
     except Exception as e:
         print(f"Failed to create repo: {e}")
-        return
 
     operations = [
         CommitOperationAdd(path_in_repo="test1.txt", path_or_fileobj=b"Content 1"),

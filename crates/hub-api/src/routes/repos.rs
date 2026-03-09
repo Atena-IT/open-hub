@@ -19,6 +19,7 @@ pub struct CreateRepoRequest {
 #[derive(Serialize)]
 pub struct RepoInfoResponse {
     #[serde(rename = "_id")]
+    pub _id: String,
     pub id: String,
     pub id_str: String,       // same as _id for compat
     #[serde(rename = "modelId")]
@@ -178,10 +179,11 @@ fn repo_to_response(
     hub_base_url: &str,
 ) -> RepoInfoResponse {
     RepoInfoResponse {
+        _id: repo.id.to_string(),
         id: repo.id.to_string(),
         id_str: repo.id.to_string(),
         model_id: repo.full_name.clone(),
-        sha: repo.head_sha.clone(),
+        sha: repo.head_sha.clone().or(Some("main".to_string())),
         url: format!("{}/{}", hub_base_url, repo.full_name),
         private: repo.private,
         disabled: false,
