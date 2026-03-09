@@ -1,12 +1,12 @@
+use crate::auth;
+use crate::state::HubState;
 use axum::{
     extract::{Path, State},
     http::HeaderMap,
     Json,
 };
-use serde::{Deserialize, Serialize};
 use common::AppError;
-use crate::state::HubState;
-use crate::auth;
+use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
 pub struct CreateRepoRequest {
@@ -21,9 +21,9 @@ pub struct RepoInfoResponse {
     #[serde(rename = "_id")]
     pub _id: String,
     pub id: String,
-    pub id_str: String,       // same as _id for compat
+    pub id_str: String, // same as _id for compat
     #[serde(rename = "modelId")]
-    pub model_id: String,     // full_name
+    pub model_id: String, // full_name
     pub sha: Option<String>,
     pub url: String,
     pub private: bool,
@@ -66,7 +66,8 @@ pub async fn create_repo(
         .map_err(|e| AppError::Internal(e.to_string()))?
         .ok_or_else(|| AppError::Internal("user not found".into()))?;
 
-    let name = req.name
+    let name = req
+        .name
         .ok_or_else(|| AppError::BadRequest("name is required".into()))?;
 
     // Handle "owner/repo" or just "repo" format
@@ -83,7 +84,9 @@ pub async fn create_repo(
 
     // Check owner is the current user (or org membership — simplified for now)
     if owner_name != user.username {
-        return Err(AppError::Forbidden("cannot create repo for another user".into()));
+        return Err(AppError::Forbidden(
+            "cannot create repo for another user".into(),
+        ));
     }
 
     // Check if repo exists
@@ -91,7 +94,10 @@ pub async fn create_repo(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
     if existing.is_some() {
-        return Err(AppError::Conflict(format!("repo '{}' already exists", full_name)));
+        return Err(AppError::Conflict(format!(
+            "repo '{}' already exists",
+            full_name
+        )));
     }
 
     let repo = db_layer::queries::repositories::create_repo(
@@ -105,7 +111,11 @@ pub async fn create_repo(
     .await
     .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    Ok(Json(repo_to_response(&repo, vec![], &state.config.hub_base_url)))
+    Ok(Json(repo_to_response(
+        &repo,
+        vec![],
+        &state.config.hub_base_url,
+    )))
 }
 
 pub async fn repo_info(
@@ -122,20 +132,27 @@ pub async fn repo_info(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    let siblings: Vec<SiblingEntry> = files.iter().map(|f| SiblingEntry {
-        rfilename: f.path.clone(),
-        size: Some(f.size),
-        lfs: if f.is_lfs {
-            f.lfs_oid.as_ref().map(|oid| LfsSiblingInfo {
-                oid: oid.clone(),
-                size: f.size,
-            })
-        } else {
-            None
-        },
-    }).collect();
+    let siblings: Vec<SiblingEntry> = files
+        .iter()
+        .map(|f| SiblingEntry {
+            rfilename: f.path.clone(),
+            size: Some(f.size),
+            lfs: if f.is_lfs {
+                f.lfs_oid.as_ref().map(|oid| LfsSiblingInfo {
+                    oid: oid.clone(),
+                    size: f.size,
+                })
+            } else {
+                None
+            },
+        })
+        .collect();
 
-    Ok(Json(repo_to_response(&repo_row, siblings, &state.config.hub_base_url)))
+    Ok(Json(repo_to_response(
+        &repo_row,
+        siblings,
+        &state.config.hub_base_url,
+    )))
 }
 
 pub async fn repo_info_revision(
@@ -153,20 +170,27 @@ pub async fn repo_info_revision(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    let siblings: Vec<SiblingEntry> = files.iter().map(|f| SiblingEntry {
-        rfilename: f.path.clone(),
-        size: Some(f.size),
-        lfs: if f.is_lfs {
-            f.lfs_oid.as_ref().map(|oid| LfsSiblingInfo {
-                oid: oid.clone(),
-                size: f.size,
-            })
-        } else {
-            None
-        },
-    }).collect();
+    let siblings: Vec<SiblingEntry> = files
+        .iter()
+        .map(|f| SiblingEntry {
+            rfilename: f.path.clone(),
+            size: Some(f.size),
+            lfs: if f.is_lfs {
+                f.lfs_oid.as_ref().map(|oid| LfsSiblingInfo {
+                    oid: oid.clone(),
+                    size: f.size,
+                })
+            } else {
+                None
+            },
+        })
+        .collect();
 
-    Ok(Json(repo_to_response(&repo_row, siblings, &state.config.hub_base_url)))
+    Ok(Json(repo_to_response(
+        &repo_row,
+        siblings,
+        &state.config.hub_base_url,
+    )))
 }
 
 pub async fn list_models(
@@ -215,7 +239,8 @@ pub async fn delete_repo(
         .ok_or_else(|| AppError::Unauthorized("missing bearer token".into()))?;
     let user_id = auth::resolve_bearer_token(&state.pool, token).await?;
 
-    let full_name = req.name
+    let full_name = req
+        .name
         .ok_or_else(|| AppError::BadRequest("name is required".into()))?;
 
     let repo = db_layer::queries::repositories::find_repo_by_full_name(&state.pool, &full_name)

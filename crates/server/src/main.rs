@@ -1,8 +1,8 @@
 use common::AppConfig;
 use s3_storage::S3Client;
-use tracing::info;
-use std::sync::Arc;
 use std::net::SocketAddr;
+use std::sync::Arc;
+use tracing::info;
 
 use cas_server::state::AppState as CasState;
 use hub_api::state::HubState;
@@ -19,8 +19,7 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     // ── Config ────────────────────────────────────────────────────────────────
-    let config = AppConfig::from_env()
-        .map_err(|e| anyhow::anyhow!("Config error: {e}"))?;
+    let config = AppConfig::from_env().map_err(|e| anyhow::anyhow!("Config error: {e}"))?;
 
     info!(
         bind_addr = %config.bind_addr,
@@ -30,7 +29,8 @@ async fn main() -> anyhow::Result<()> {
     );
 
     // ── Database ──────────────────────────────────────────────────────────────
-    let pool = db_layer::create_pool(&config.database_url).await
+    let pool = db_layer::create_pool(&config.database_url)
+        .await
         .map_err(|e| anyhow::anyhow!("DB connection failed: {e}"))?;
     info!("Database connected and migrations applied");
 
@@ -51,17 +51,9 @@ async fn main() -> anyhow::Result<()> {
     let s3_arc = Arc::new(s3);
     let config_arc = Arc::new(config.clone());
 
-    let cas_state = CasState::new(
-        (*pool_arc).clone(),
-        (*s3_arc).clone(),
-        config.clone(),
-    );
+    let cas_state = CasState::new((*pool_arc).clone(), (*s3_arc).clone(), config.clone());
 
-    let hub_state = HubState::from_arcs(
-        pool_arc.clone(),
-        s3_arc.clone(),
-        config_arc.clone(),
-    );
+    let hub_state = HubState::from_arcs(pool_arc.clone(), s3_arc.clone(), config_arc.clone());
 
     // ── Build unified router ─────────────────────────────────────────────────
     // Order matters: more specific routes first

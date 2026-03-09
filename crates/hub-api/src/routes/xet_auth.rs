@@ -1,13 +1,13 @@
+use crate::auth;
+use crate::state::HubState;
 use axum::{
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     Json,
 };
-use serde::Serialize;
 use common::AppError;
-use crate::state::HubState;
-use crate::auth;
+use serde::Serialize;
 
 #[derive(Serialize)]
 pub struct XetTokenResponse {
@@ -46,14 +46,19 @@ async fn get_xet_token_impl(
     // Resolve user (ensure they exist and have access)
     let user_id = auth::resolve_bearer_token(&state.pool, token).await?;
 
-    let owner = params.get("owner").ok_or_else(|| AppError::BadRequest("missing owner".into()))?;
-    let repo = params.get("repo").ok_or_else(|| AppError::BadRequest("missing repo".into()))?;
+    let owner = params
+        .get("owner")
+        .ok_or_else(|| AppError::BadRequest("missing owner".into()))?;
+    let repo = params
+        .get("repo")
+        .ok_or_else(|| AppError::BadRequest("missing repo".into()))?;
 
     let full_name = format!("{}/{}", owner, repo);
-    let _repo_row = db_layer::queries::repositories::find_repo_by_full_name(&state.pool, &full_name)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?
-        .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
+    let _repo_row =
+        db_layer::queries::repositories::find_repo_by_full_name(&state.pool, &full_name)
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?
+            .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
 
     // Validate token_type
     if token_type != "read" && token_type != "write" {
@@ -63,7 +68,7 @@ async fn get_xet_token_impl(
     let now = chrono::Utc::now().timestamp() as u64;
     let exp = now + state.config.jwt_expiry_secs;
 
-    use jsonwebtoken::{encode, Header, EncodingKey};
+    use jsonwebtoken::{encode, EncodingKey, Header};
     #[derive(serde::Serialize)]
     struct Claims {
         sub: String,
@@ -75,15 +80,19 @@ async fn get_xet_token_impl(
     let claims = Claims {
         sub: full_name.clone(),
         scope: token_type.to_string(),
-        revision: params.get("revision").cloned().unwrap_or_else(|| "main".to_string()),
+        revision: params
+            .get("revision")
+            .cloned()
+            .unwrap_or_else(|| "main".to_string()),
         exp,
     };
 
     let cas_token = encode(
         &Header::default(),
         &claims,
-        &EncodingKey::from_secret(state.config.jwt_secret.as_bytes())
-    ).map_err(|e| AppError::Internal(format!("Failed to create token: {}", e)))?;
+        &EncodingKey::from_secret(state.config.jwt_secret.as_bytes()),
+    )
+    .map_err(|e| AppError::Internal(format!("Failed to create token: {}", e)))?;
 
     let json_body = Json(XetTokenResponse {
         access_token: cas_token.clone(),

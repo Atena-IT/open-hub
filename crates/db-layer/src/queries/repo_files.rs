@@ -44,7 +44,11 @@ pub async fn upsert_file(
     Ok(row)
 }
 
-pub async fn find_file(pool: &PgPool, repo_id: Uuid, path: &str) -> anyhow::Result<Option<RepoFileRow>> {
+pub async fn find_file(
+    pool: &PgPool,
+    repo_id: Uuid,
+    path: &str,
+) -> anyhow::Result<Option<RepoFileRow>> {
     let row = sqlx::query_as::<_, RepoFileRow>(
         "SELECT id, repo_id, path, size, sha256, s3_key, is_lfs, lfs_oid, created_at, updated_at FROM repo_files WHERE repo_id = $1 AND path = $2",
     )
@@ -55,7 +59,11 @@ pub async fn find_file(pool: &PgPool, repo_id: Uuid, path: &str) -> anyhow::Resu
     Ok(row)
 }
 
-pub async fn list_files(pool: &PgPool, repo_id: Uuid, prefix: Option<&str>) -> anyhow::Result<Vec<RepoFileRow>> {
+pub async fn list_files(
+    pool: &PgPool,
+    repo_id: Uuid,
+    prefix: Option<&str>,
+) -> anyhow::Result<Vec<RepoFileRow>> {
     let rows = if let Some(prefix) = prefix {
         let pattern = if prefix.is_empty() {
             "%".to_string()

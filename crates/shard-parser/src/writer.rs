@@ -18,8 +18,8 @@ fn write_u64_le(out: &mut Vec<u8>, v: u64) {
 }
 
 fn write_bookend(out: &mut Vec<u8>) {
-    out.extend_from_slice(&BOOKEND_HASH);   // 32 × 0xFF
-    out.extend_from_slice(&[0u8; 16]);      // 16 × 0x00
+    out.extend_from_slice(&BOOKEND_HASH); // 32 × 0xFF
+    out.extend_from_slice(&[0u8; 16]); // 16 × 0x00
 }
 
 /// Build a minimal deduplication-response shard for the given xorbs.
@@ -65,16 +65,16 @@ pub fn build_dedup_response_shard(xorbs: &[&ParsedXorb]) -> Vec<u8> {
         .as_secs();
     let expiry = now + 7 * 24 * 3600; // 7 days
 
-    write_u64_le(&mut out, MDB_SHARD_FOOTER_VERSION);   // version
-    write_u64_le(&mut out, file_info_offset);           // file_info_offset
-    write_u64_le(&mut out, cas_info_offset);            // cas_info_offset
-    out.extend_from_slice(&[0u8; 48]);                  // _buffer
-    out.extend_from_slice(&[0u8; 32]);                  // chunk_hash_hmac_key (zeros = no HMAC)
-    write_u64_le(&mut out, now);                        // shard_creation_timestamp
-    write_u64_le(&mut out, expiry);                     // shard_key_expiry
-    out.extend_from_slice(&[0u8; 72]);                  // _buffer2
-    write_u64_le(&mut out, footer_offset);              // footer_offset
-    // Footer is exactly 200 bytes: 8+8+8+48+32+8+8+72+8 = 200 ✓
+    write_u64_le(&mut out, MDB_SHARD_FOOTER_VERSION); // version
+    write_u64_le(&mut out, file_info_offset); // file_info_offset
+    write_u64_le(&mut out, cas_info_offset); // cas_info_offset
+    out.extend_from_slice(&[0u8; 48]); // _buffer
+    out.extend_from_slice(&[0u8; 32]); // chunk_hash_hmac_key (zeros = no HMAC)
+    write_u64_le(&mut out, now); // shard_creation_timestamp
+    write_u64_le(&mut out, expiry); // shard_key_expiry
+    out.extend_from_slice(&[0u8; 72]); // _buffer2
+    write_u64_le(&mut out, footer_offset); // footer_offset
+                                           // Footer is exactly 200 bytes: 8+8+8+48+32+8+8+72+8 = 200 ✓
 
     // ── Back-fill header ─────────────────────────────────────────────────────
     out[header_offset..header_offset + 32].copy_from_slice(&MDB_SHARD_HEADER_TAG);

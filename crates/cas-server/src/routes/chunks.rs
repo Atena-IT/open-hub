@@ -12,15 +12,15 @@ use axum::{
 };
 use tracing::instrument;
 
+use crate::state::AppState;
 use common::{api_string_to_hash, AppError};
 use db_layer::queries::xorbs::chunks_for_xorb;
-use shard_parser::{build_dedup_response_shard, ParsedXorb, ChunkInXorb};
-use crate::state::AppState;
+use shard_parser::{build_dedup_response_shard, ChunkInXorb, ParsedXorb};
 
 #[derive(Debug, serde::Deserialize)]
 pub struct ChunkPath {
     prefix: String,
-    hash:   String,
+    hash: String,
 }
 
 #[instrument(skip(state), fields(chunk_hash = %p.hash))]
@@ -29,7 +29,10 @@ pub async fn dedup_query(
     Path(p): Path<ChunkPath>,
 ) -> Result<Response, AppError> {
     if p.prefix != "default-merkledb" && p.prefix != "default" {
-        return Err(AppError::BadRequest(format!("unknown prefix '{}'", p.prefix)));
+        return Err(AppError::BadRequest(format!(
+            "unknown prefix '{}'",
+            p.prefix
+        )));
     }
 
     let chunk_hash = api_string_to_hash(&p.hash)
@@ -42,11 +45,13 @@ pub async fn dedup_query(
 
     let record = match record {
         Some(r) => r,
-        None    => return Err(AppError::NotFound("chunk not found".into())),
+        None => return Err(AppError::NotFound("chunk not found".into())),
     };
 
     // Get the xorb hash from the chunk record
-    let xorb_hash_bytes: [u8; 32] = record.xorb_hash.try_into()
+    let xorb_hash_bytes: [u8; 32] = record
+        .xorb_hash
+        .try_into()
         .map_err(|_| AppError::Internal("bad xorb_hash in DB".into()))?;
 
     // Get all chunks in that xorb
@@ -54,22 +59,23 @@ pub async fn dedup_query(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    let chunks: Vec<ChunkInXorb> = db_chunks.into_iter().map(|c| {
-        let mut ch = [0u8; 32];
-        let src = c.hash.as_slice();
-        ch[..src.len().min(32)].copy_from_slice(&src[..src.len().min(32)]);
-        ChunkInXorb {
-            chunk_hash:             ch,
-            chunk_byte_range_start: c.byte_range_start as u32,
-            unpacked_segment_bytes: c.unpacked_segment_bytes as u32,
-        }
-    }).collect();
+    let chunks: Vec<ChunkInXorb> = db_chunks
+        .into_iter()
+        .map(|c| {
+            let mut ch = [0u8; 32];
+            let src = c.hash.as_slice();
+            ch[..src.len().min(32)].copy_from_slice(&src[..src.len().min(32)]);
+            ChunkInXorb {
+                chunk_hash: ch,
+                chunk_byte_range_start: c.byte_range_start as u32,
+                unpacked_segment_bytes: c.unpacked_segment_bytes as u32,
+            }
+        })
+        .collect();
 
     // We need num_bytes_in_cas and num_bytes_on_disk for the xorb.
     // Fetch from xorbs table (size_bytes is on-disk size).
-    let on_disk: u32 = sqlx::query_scalar::<_, i64>(
-            "SELECT size_bytes FROM xorbs WHERE hash = $1"
-        )
+    let on_disk: u32 = sqlx::query_scalar::<_, i64>("SELECT size_bytes FROM xorbs WHERE hash = $1")
         .bind(xorb_hash_bytes.as_slice())
         .fetch_optional(state.pool.as_ref())
         .await
@@ -79,7 +85,7 @@ pub async fn dedup_query(
 
     let xorb = ParsedXorb {
         xorb_hash: xorb_hash_bytes,
-        num_bytes_in_cas:  in_cas,
+        num_bytes_in_cas: in_cas,
         num_bytes_on_disk: on_disk,
         chunks,
     };

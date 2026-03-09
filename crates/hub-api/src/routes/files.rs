@@ -1,3 +1,5 @@
+use crate::auth;
+use crate::state::HubState;
 use axum::{
     body::Body,
     extract::{Path, State},
@@ -5,11 +7,9 @@ use axum::{
     response::Response,
     Json,
 };
+use common::AppError;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
-use common::AppError;
-use crate::state::HubState;
-use crate::auth;
 
 /// GET /api/{type}s/:owner/:repo/tree/:revision[/*path]
 pub async fn tree_list(
@@ -17,8 +17,12 @@ pub async fn tree_list(
     Path(params): Path<Vec<(String, String)>>,
 ) -> Result<Json<Vec<TreeEntry>>, AppError> {
     let params: std::collections::HashMap<_, _> = params.into_iter().collect();
-    let owner = params.get("owner").ok_or_else(|| AppError::BadRequest("missing owner".into()))?;
-    let repo = params.get("repo").ok_or_else(|| AppError::BadRequest("missing repo".into()))?;
+    let owner = params
+        .get("owner")
+        .ok_or_else(|| AppError::BadRequest("missing owner".into()))?;
+    let repo = params
+        .get("repo")
+        .ok_or_else(|| AppError::BadRequest("missing repo".into()))?;
     let path = params.get("path");
 
     let full_name = format!("{}/{}", owner, repo);
@@ -142,18 +146,22 @@ pub async fn preupload(
     Path(_params): Path<Vec<(String, String)>>,
     Json(req): Json<PreuploadRequest>,
 ) -> Result<Json<PreuploadResponse>, AppError> {
-    let files: Vec<PreuploadFileResponse> = req.files.iter().map(|f| {
-        let upload_mode = if f.size > 10 * 1024 * 1024 {
-            "lfs".to_string()
-        } else {
-            "regular".to_string()
-        };
-        PreuploadFileResponse {
-            path: f.path.clone(),
-            upload_mode,
-            should_ignore: false,
-        }
-    }).collect();
+    let files: Vec<PreuploadFileResponse> = req
+        .files
+        .iter()
+        .map(|f| {
+            let upload_mode = if f.size > 10 * 1024 * 1024 {
+                "lfs".to_string()
+            } else {
+                "regular".to_string()
+            };
+            PreuploadFileResponse {
+                path: f.path.clone(),
+                upload_mode,
+                should_ignore: false,
+            }
+        })
+        .collect();
 
     Ok(Json(PreuploadResponse { files }))
 }
@@ -171,8 +179,12 @@ pub async fn commit(
     let user_id = auth::resolve_bearer_token(&state.pool, token).await?;
 
     let params: std::collections::HashMap<_, _> = params.into_iter().collect();
-    let owner = params.get("owner").ok_or_else(|| AppError::BadRequest("missing owner".into()))?;
-    let repo = params.get("repo").ok_or_else(|| AppError::BadRequest("missing repo".into()))?;
+    let owner = params
+        .get("owner")
+        .ok_or_else(|| AppError::BadRequest("missing owner".into()))?;
+    let repo = params
+        .get("repo")
+        .ok_or_else(|| AppError::BadRequest("missing repo".into()))?;
     let full_name = format!("{}/{}", owner, repo);
 
     let repo_row = db_layer::queries::repositories::find_repo_by_full_name(&state.pool, &full_name)
@@ -189,7 +201,9 @@ pub async fn commit(
 
     for line in body_str.lines() {
         let line = line.trim();
-        if line.is_empty() { continue; }
+        if line.is_empty() {
+            continue;
+        }
 
         let val: serde_json::Value = serde_json::from_str(line)
             .map_err(|e| AppError::BadRequest(format!("invalid NDJSON line: {e}")))?;
@@ -220,7 +234,9 @@ pub async fn commit(
     // Process each operation
     for (key, value) in &operations {
         let path = value.get("path").and_then(|p| p.as_str()).unwrap_or("");
-        if path.is_empty() { continue; }
+        if path.is_empty() {
+            continue;
+        }
 
         match key.as_str() {
             "file" => {
@@ -229,7 +245,8 @@ pub async fn commit(
                     let encoding = value.get("encoding").and_then(|e| e.as_str());
                     let file_bytes = if encoding == Some("base64") {
                         use base64::Engine;
-                        base64::engine::general_purpose::STANDARD.decode(content)
+                        base64::engine::general_purpose::STANDARD
+                            .decode(content)
                             .map_err(|e| AppError::BadRequest(format!("invalid base64: {e}")))?
                     } else {
                         content.as_bytes().to_vec()
@@ -238,7 +255,9 @@ pub async fn commit(
                     let sha256 = hex::encode(sha2::Sha256::digest(&file_bytes));
                     let s3_key = s3_storage::repo_file_key(&full_name, &sha256);
 
-                    state.s3.put_object(&s3_key, bytes::Bytes::from(file_bytes.clone()))
+                    state
+                        .s3
+                        .put_object(&s3_key, bytes::Bytes::from(file_bytes.clone()))
                         .await
                         .map_err(|e| AppError::Internal(format!("S3 upload failed: {e}")))?;
 
@@ -285,9 +304,12 @@ pub async fn commit(
     }
 
     // Create commit record
-    let sha = format!("{:x}", sha2::Sha256::digest(
-        format!("{}:{}", chrono::Utc::now().timestamp(), commit_message).as_bytes()
-    ));
+    let sha = format!(
+        "{:x}",
+        sha2::Sha256::digest(
+            format!("{}:{}", chrono::Utc::now().timestamp(), commit_message).as_bytes()
+        )
+    );
     let commit_sha = &sha[..40];
 
     let parent_sha = repo_row.head_sha.as_deref();
@@ -308,7 +330,10 @@ pub async fn commit(
 
     Ok(Json(CommitResponse {
         commit_oid: commit_sha.to_string(),
-        commit_url: format!("{}/{}/commit/{}", state.config.hub_base_url, full_name, commit_sha),
+        commit_url: format!(
+            "{}/{}/commit/{}",
+            state.config.hub_base_url, full_name, commit_sha
+        ),
     }))
 }
 
@@ -327,9 +352,15 @@ pub async fn resolve_file(
     Path(params): Path<Vec<(String, String)>>,
 ) -> Result<Response, AppError> {
     let params: std::collections::HashMap<_, _> = params.into_iter().collect();
-    let owner = params.get("owner").ok_or_else(|| AppError::BadRequest("missing owner".into()))?;
-    let repo = params.get("repo").ok_or_else(|| AppError::BadRequest("missing repo".into()))?;
-    let path = params.get("path").ok_or_else(|| AppError::BadRequest("missing path".into()))?;
+    let owner = params
+        .get("owner")
+        .ok_or_else(|| AppError::BadRequest("missing owner".into()))?;
+    let repo = params
+        .get("repo")
+        .ok_or_else(|| AppError::BadRequest("missing repo".into()))?;
+    let path = params
+        .get("path")
+        .ok_or_else(|| AppError::BadRequest("missing path".into()))?;
 
     let full_name = format!("{}/{}", owner, repo);
     let repo_row = db_layer::queries::repositories::find_repo_by_full_name(&state.pool, &full_name)
@@ -359,7 +390,10 @@ pub async fn resolve_file(
             .header("X-Xet-Hash", oid)
             .header(
                 "X-Xet-Refresh-Route",
-                format!("{}/api/models/{}/{}/xet-read-token/main", state.config.hub_base_url, owner, repo)
+                format!(
+                    "{}/api/models/{}/{}/xet-read-token/main",
+                    state.config.hub_base_url, owner, repo
+                ),
             );
 
         if method == Method::HEAD {
@@ -374,7 +408,9 @@ pub async fn resolve_file(
             // Then it IS in S3! Let's check if the s3_key actually exists in S3 as a full file.
             // For now, if xet is enabled, `huggingface_hub` intercepts at HEAD anyway.
             if let Some(s3_key) = &file.s3_key {
-                let url = state.s3.presign_get(s3_key, std::time::Duration::from_secs(3600))
+                let url = state
+                    .s3
+                    .presign_get(s3_key, std::time::Duration::from_secs(3600))
                     .await
                     .map_err(|e| AppError::Internal(format!("presign failed: {e}")))?;
                 return Ok(Response::builder()
@@ -390,13 +426,17 @@ pub async fn resolve_file(
     }
 
     // Regular file: proxy content
-    let s3_key = file.s3_key.as_deref()
+    let s3_key = file
+        .s3_key
+        .as_deref()
         .ok_or_else(|| AppError::NotFound("file content not available".into()))?;
 
     let data = if method == Method::HEAD {
         bytes::Bytes::new()
     } else {
-        state.s3.get_object(s3_key)
+        state
+            .s3
+            .get_object(s3_key)
             .await
             .map_err(|e| AppError::Internal(format!("download failed: {e}")))?
     };

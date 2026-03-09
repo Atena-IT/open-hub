@@ -1,9 +1,6 @@
 pub mod pages;
 
-use axum::{
-    routing::get,
-    Router,
-};
+use axum::{routing::get, Router};
 use hub_api::state::HubState;
 use std::sync::Arc;
 use tera::Tera;
@@ -32,9 +29,15 @@ pub fn web_router(hub_state: HubState, template_dir: &str) -> Router {
 
     Router::new()
         .route("/-/login", get(pages::login_page).post(pages::login_submit))
-        .route("/-/signup", get(pages::signup_page).post(pages::signup_submit))
+        .route(
+            "/-/signup",
+            get(pages::signup_page).post(pages::signup_submit),
+        )
         .route("/-/logout", get(pages::logout))
-        .route("/-/new", get(pages::new_repo_page).post(pages::new_repo_submit))
+        .route(
+            "/-/new",
+            get(pages::new_repo_page).post(pages::new_repo_submit),
+        )
         .route("/", get(pages::home))
         .route("/:owner", get(pages::user_profile))
         .route("/:owner/:repo", get(pages::repo_detail))

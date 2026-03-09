@@ -1,8 +1,8 @@
-use axum::{extract::State, Json};
-use serde::{Deserialize, Serialize};
-use common::AppError;
-use crate::state::HubState;
 use crate::auth;
+use crate::state::HubState;
+use axum::{extract::State, Json};
+use common::AppError;
+use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
 pub struct RegisterRequest {
@@ -22,10 +22,14 @@ pub async fn register(
     Json(req): Json<RegisterRequest>,
 ) -> Result<Json<AuthResponse>, AppError> {
     if req.username.is_empty() || req.password.is_empty() {
-        return Err(AppError::BadRequest("username and password required".into()));
+        return Err(AppError::BadRequest(
+            "username and password required".into(),
+        ));
     }
     if req.username.len() < 3 || req.username.len() > 64 {
-        return Err(AppError::BadRequest("username must be 3-64 characters".into()));
+        return Err(AppError::BadRequest(
+            "username must be 3-64 characters".into(),
+        ));
     }
 
     // Check if username taken

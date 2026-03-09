@@ -1,3 +1,5 @@
+use crate::auth;
+use crate::state::HubState;
 use axum::{
     body::Body,
     extract::{Path, State},
@@ -5,10 +7,8 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use serde::{Deserialize, Serialize};
 use common::AppError;
-use crate::state::HubState;
-use crate::auth;
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 #[derive(Deserialize)]
@@ -88,19 +88,18 @@ pub async fn lfs_batch(
     };
 
     for obj in &req.objects {
-        let existing = db_layer::queries::lfs_objects::find_lfs_object(
-            &state.pool,
-            repo_row.id,
-            &obj.oid,
-        )
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+        let existing =
+            db_layer::queries::lfs_objects::find_lfs_object(&state.pool, repo_row.id, &obj.oid)
+                .await
+                .map_err(|e| AppError::Internal(e.to_string()))?;
 
         let actions = match req.operation.as_str() {
             "download" => {
                 if let Some(lfs_obj) = &existing {
                     if let Some(s3_key) = &lfs_obj.s3_key {
-                        let url = state.s3.presign_get(s3_key, Duration::from_secs(3600))
+                        let url = state
+                            .s3
+                            .presign_get(s3_key, Duration::from_secs(3600))
                             .await
                             .map_err(|e| AppError::Internal(format!("presign failed: {e}")))?;
                         Some(LfsActions {
@@ -125,7 +124,9 @@ pub async fn lfs_batch(
                     None
                 } else {
                     let s3_key = s3_storage::lfs_key(&obj.oid);
-                    let upload_url = state.s3.presign_put(&s3_key, Duration::from_secs(3600))
+                    let upload_url = state
+                        .s3
+                        .presign_put(&s3_key, Duration::from_secs(3600))
                         .await
                         .map_err(|e| AppError::Internal(format!("presign PUT failed: {e}")))?;
 
@@ -166,10 +167,7 @@ pub async fn lfs_batch(
         });
     }
 
-    Ok(Json(LfsBatchResponse {
-        transfer,
-        objects,
-    }))
+    Ok(Json(LfsBatchResponse { transfer, objects }))
 }
 
 /// GET /:owner/:repo/info/lfs/objects/:oid — redirect to presigned download
@@ -189,10 +187,13 @@ pub async fn lfs_download(
         .map_err(|e| AppError::Internal(e.to_string()))?
         .ok_or_else(|| AppError::NotFound("LFS object not found".into()))?;
 
-    let s3_key = lfs_obj.s3_key
+    let s3_key = lfs_obj
+        .s3_key
         .ok_or_else(|| AppError::NotFound("LFS object not uploaded yet".into()))?;
 
-    let url = state.s3.presign_get(&s3_key, Duration::from_secs(3600))
+    let url = state
+        .s3
+        .presign_get(&s3_key, Duration::from_secs(3600))
         .await
         .map_err(|e| AppError::Internal(format!("presign failed: {e}")))?;
 
@@ -223,7 +224,9 @@ pub async fn lfs_upload(
 
     let s3_key = s3_storage::lfs_key(&oid);
     let body_len = body.len() as i64;
-    state.s3.put_object(&s3_key, body)
+    state
+        .s3
+        .put_object(&s3_key, body)
         .await
         .map_err(|e| AppError::Internal(format!("S3 upload failed: {e}")))?;
 
@@ -266,7 +269,9 @@ pub async fn lfs_verify(
 
     // Update s3_key now that upload is complete
     let s3_key = s3_storage::lfs_key(&req.oid);
-    let exists = state.s3.object_exists(&s3_key)
+    let exists = state
+        .s3
+        .object_exists(&s3_key)
         .await
         .map_err(|e| AppError::Internal(format!("S3 check failed: {e}")))?;
 

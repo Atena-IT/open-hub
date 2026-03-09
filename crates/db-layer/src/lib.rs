@@ -1,7 +1,7 @@
 pub mod queries;
 
 use sqlx::postgres::PgPoolOptions;
-pub use sqlx::{PgPool, postgres::PgRow};
+pub use sqlx::{postgres::PgRow, PgPool};
 
 pub async fn create_pool(database_url: &str) -> anyhow::Result<PgPool> {
     let pool = PgPoolOptions::new()

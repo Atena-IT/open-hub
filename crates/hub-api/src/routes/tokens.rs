@@ -1,12 +1,12 @@
+use crate::auth;
+use crate::state::HubState;
 use axum::{
     extract::{Path, State},
     http::HeaderMap,
     Json,
 };
-use serde::{Deserialize, Serialize};
 use common::AppError;
-use crate::state::HubState;
-use crate::auth;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Deserialize)]
@@ -32,7 +32,9 @@ pub async fn create_token(
         .ok_or_else(|| AppError::Unauthorized("missing bearer token".into()))?;
     let user_id = auth::resolve_bearer_token(&state.pool, bearer).await?;
 
-    let scopes = req.scopes.unwrap_or_else(|| vec!["repo.read".to_string(), "repo.write".to_string()]);
+    let scopes = req
+        .scopes
+        .unwrap_or_else(|| vec!["repo.read".to_string(), "repo.write".to_string()]);
     let (token, token_hash) = auth::generate_api_token();
 
     let row = db_layer::queries::access_tokens::create_token(
@@ -65,12 +67,15 @@ pub async fn list_tokens(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    let tokens: Vec<TokenResponse> = rows.iter().map(|r| TokenResponse {
-        id: r.id.to_string(),
-        name: r.name.clone(),
-        token: None,
-        created_at: r.created_at.to_rfc3339(),
-    }).collect();
+    let tokens: Vec<TokenResponse> = rows
+        .iter()
+        .map(|r| TokenResponse {
+            id: r.id.to_string(),
+            name: r.name.clone(),
+            token: None,
+            created_at: r.created_at.to_rfc3339(),
+        })
+        .collect();
 
     Ok(Json(tokens))
 }
@@ -84,8 +89,8 @@ pub async fn delete_token(
         .ok_or_else(|| AppError::Unauthorized("missing bearer token".into()))?;
     let user_id = auth::resolve_bearer_token(&state.pool, bearer).await?;
 
-    let token_uuid = Uuid::parse_str(&token_id)
-        .map_err(|_| AppError::BadRequest("invalid token id".into()))?;
+    let token_uuid =
+        Uuid::parse_str(&token_id).map_err(|_| AppError::BadRequest("invalid token id".into()))?;
 
     let deleted = db_layer::queries::access_tokens::delete_token(&state.pool, token_uuid, user_id)
         .await

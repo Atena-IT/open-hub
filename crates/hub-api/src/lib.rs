@@ -1,6 +1,6 @@
 pub mod auth;
-pub mod state;
 pub mod routes;
+pub mod state;
 
 use axum::Router;
 use state::HubState;

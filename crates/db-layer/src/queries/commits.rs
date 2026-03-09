@@ -45,7 +45,11 @@ pub async fn get_latest_commit(pool: &PgPool, repo_id: Uuid) -> anyhow::Result<O
     Ok(row)
 }
 
-pub async fn find_commit_by_sha(pool: &PgPool, repo_id: Uuid, sha: &str) -> anyhow::Result<Option<CommitRow>> {
+pub async fn find_commit_by_sha(
+    pool: &PgPool,
+    repo_id: Uuid,
+    sha: &str,
+) -> anyhow::Result<Option<CommitRow>> {
     let row = sqlx::query_as::<_, CommitRow>(
         "SELECT id, repo_id, sha, message, author_id, parent_sha, created_at FROM commits WHERE repo_id = $1 AND sha = $2",
     )

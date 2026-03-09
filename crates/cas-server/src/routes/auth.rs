@@ -16,8 +16,8 @@ use common::AppError;
 pub struct TokenPath {
     pub repo_type: String,
     pub namespace: String,
-    pub repo:      String,
-    pub revision:  String,
+    pub repo: String,
+    pub revision: String,
 }
 
 pub async fn issue_read_token(
@@ -34,11 +34,7 @@ pub async fn issue_write_token(
     issue_token(state, p, "write").await
 }
 
-async fn issue_token(
-    state: AppState,
-    p: TokenPath,
-    scope: &str,
-) -> Result<Json<Value>, AppError> {
+async fn issue_token(state: AppState, p: TokenPath, scope: &str) -> Result<Json<Value>, AppError> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
@@ -46,10 +42,10 @@ async fn issue_token(
     let exp = now + state.config.jwt_expiry_secs;
 
     let claims = Claims {
-        sub:      format!("{}/{}/{}", p.repo_type, p.namespace, p.repo),
-        scope:    scope.to_owned(),
+        sub: format!("{}/{}/{}", p.repo_type, p.namespace, p.repo),
+        scope: scope.to_owned(),
         revision: p.revision.clone(),
-        exp:      exp as usize,
+        exp: exp as usize,
     };
 
     let token = encode(

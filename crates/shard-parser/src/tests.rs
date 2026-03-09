@@ -3,9 +3,8 @@ mod tests {
     use shard_parser::{
         build_dedup_response_shard, parse_shard,
         types::{
-            ChunkInXorb, MDB_SHARD_HEADER_TAG, MDB_SHARD_HEADER_VERSION,
-            MDB_FILE_FLAG_WITH_METADATA_EXT, MDB_FILE_FLAG_WITH_VERIFICATION,
-            BOOKEND_HASH,
+            ChunkInXorb, BOOKEND_HASH, MDB_FILE_FLAG_WITH_METADATA_EXT,
+            MDB_FILE_FLAG_WITH_VERIFICATION, MDB_SHARD_HEADER_TAG, MDB_SHARD_HEADER_VERSION,
         },
     };
 
@@ -52,10 +51,10 @@ mod tests {
 
         // FileDataSequenceEntry (1 term)
         buf.extend_from_slice(&xorb_hash); // cas_hash
-        write_u32_le(&mut buf, 0);          // cas_flags
-        write_u32_le(&mut buf, 65536);      // unpacked_segment_bytes
-        write_u32_le(&mut buf, 0);          // chunk_index_start
-        write_u32_le(&mut buf, 1);          // chunk_index_end
+        write_u32_le(&mut buf, 0); // cas_flags
+        write_u32_le(&mut buf, 65536); // unpacked_segment_bytes
+        write_u32_le(&mut buf, 0); // chunk_index_start
+        write_u32_le(&mut buf, 1); // chunk_index_end
 
         // FileVerificationEntry (1 entry matching num_entries)
         buf.extend_from_slice(&make_hash(0xAA)); // range_hash
@@ -71,15 +70,15 @@ mod tests {
         // ── CAS Info Section ─────────────────────────────────────────────────
         // CASChunkSequenceHeader
         buf.extend_from_slice(&xorb_hash);
-        write_u32_le(&mut buf, 0);      // cas_flags
-        write_u32_le(&mut buf, 1);      // num_entries
-        write_u32_le(&mut buf, 65536);  // num_bytes_in_cas
-        write_u32_le(&mut buf, 66000);  // num_bytes_on_disk
+        write_u32_le(&mut buf, 0); // cas_flags
+        write_u32_le(&mut buf, 1); // num_entries
+        write_u32_le(&mut buf, 65536); // num_bytes_in_cas
+        write_u32_le(&mut buf, 66000); // num_bytes_on_disk
 
         // CASChunkSequenceEntry
         buf.extend_from_slice(&chunk_hash);
-        write_u32_le(&mut buf, 0);      // chunk_byte_range_start
-        write_u32_le(&mut buf, 65536);  // unpacked_segment_bytes
+        write_u32_le(&mut buf, 0); // chunk_byte_range_start
+        write_u32_le(&mut buf, 65536); // unpacked_segment_bytes
         buf.extend_from_slice(&[0u8; 8]); // _unused
 
         // CAS Info bookend
@@ -92,9 +91,9 @@ mod tests {
 
     #[test]
     fn parse_minimal_shard() {
-        let file_hash  = make_hash(0x01);
-        let sha256     = make_hash(0x02);
-        let xorb_hash  = make_hash(0x03);
+        let file_hash = make_hash(0x01);
+        let sha256 = make_hash(0x02);
+        let xorb_hash = make_hash(0x03);
         let chunk_hash = make_hash(0x04);
 
         let data = build_test_shard(file_hash, sha256, xorb_hash, chunk_hash);
@@ -163,8 +162,16 @@ mod tests {
             num_bytes_in_cas: 65536,
             num_bytes_on_disk: 66000,
             chunks: vec![
-                ChunkInXorb { chunk_hash: make_hash(0x10), chunk_byte_range_start: 0,     unpacked_segment_bytes: 32768 },
-                ChunkInXorb { chunk_hash: make_hash(0x11), chunk_byte_range_start: 32768, unpacked_segment_bytes: 32768 },
+                ChunkInXorb {
+                    chunk_hash: make_hash(0x10),
+                    chunk_byte_range_start: 0,
+                    unpacked_segment_bytes: 32768,
+                },
+                ChunkInXorb {
+                    chunk_hash: make_hash(0x11),
+                    chunk_byte_range_start: 32768,
+                    unpacked_segment_bytes: 32768,
+                },
             ],
         };
 
@@ -173,11 +180,12 @@ mod tests {
         // Must end with a 200-byte footer
         assert!(shard_bytes.len() >= 200 + 48, "shard too small");
         // Footer version is at footer_offset
-        let footer_offset = u64::from_le_bytes(
-            shard_bytes[shard_bytes.len() - 8..].try_into().unwrap()
-        ) as usize;
+        let footer_offset =
+            u64::from_le_bytes(shard_bytes[shard_bytes.len() - 8..].try_into().unwrap()) as usize;
         let footer_version = u64::from_le_bytes(
-            shard_bytes[footer_offset..footer_offset + 8].try_into().unwrap()
+            shard_bytes[footer_offset..footer_offset + 8]
+                .try_into()
+                .unwrap(),
         );
         assert_eq!(footer_version, 1, "footer version mismatch");
     }

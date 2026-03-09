@@ -2,10 +2,10 @@ use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
 };
-use sha2::{Digest, Sha256};
-use rand::Rng;
 use common::AppError;
 use db_layer::PgPool;
+use rand::Rng;
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 /// Hash a password with Argon2id.
@@ -45,10 +45,7 @@ pub fn sha256_hash(data: &[u8]) -> Vec<u8> {
 
 /// Resolve a Bearer token to a user ID.
 /// Supports: ox_* API tokens.
-pub async fn resolve_bearer_token(
-    pool: &PgPool,
-    token: &str,
-) -> Result<Uuid, AppError> {
+pub async fn resolve_bearer_token(pool: &PgPool, token: &str) -> Result<Uuid, AppError> {
     if token.starts_with("ox_") {
         // API token: hash and look up
         let hash = sha256_hash(token.as_bytes());
@@ -68,6 +65,9 @@ pub async fn resolve_bearer_token(
 
 /// Extract and resolve Bearer token from request headers.
 pub fn extract_bearer(headers: &axum::http::HeaderMap) -> Option<&str> {
-    let value = headers.get(axum::http::header::AUTHORIZATION)?.to_str().ok()?;
+    let value = headers
+        .get(axum::http::header::AUTHORIZATION)?
+        .to_str()
+        .ok()?;
     value.strip_prefix("Bearer ")
 }

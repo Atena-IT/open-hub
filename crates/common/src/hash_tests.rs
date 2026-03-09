@@ -1,7 +1,7 @@
 /// Hash encoding roundtrip and known-vector tests from the Xet spec.
 #[cfg(test)]
 mod hash_tests {
-    use crate::types::{hash_to_api_string, api_string_to_hash};
+    use crate::types::{api_string_to_hash, hash_to_api_string};
 
     #[test]
     fn spec_known_vector() {
@@ -9,7 +9,7 @@ mod hash_tests {
         let input: [u8; 32] = std::array::from_fn(|i| i as u8);
         let s = hash_to_api_string(&input);
         assert_eq!(s.len(), 64);
-        assert_eq!(&s[0..16],  "0706050403020100");
+        assert_eq!(&s[0..16], "0706050403020100");
         assert_eq!(&s[16..32], "0f0e0d0c0b0a0908");
         assert_eq!(&s[32..48], "1716151413121110");
         assert_eq!(&s[48..64], "1f1e1d1c1b1a1918");

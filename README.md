@@ -105,3 +105,6 @@ cargo test --workspace -- --include-ignored
 - **Upload Order**: Xorbs (data blobs) are pushed to S3 via pre-signed URLs before the Shard (chunk metadata) that references them.
 - **Deduplication**: Driven by `/v1/chunks`. The client calculates chunk hashes locally and skips uploading chunks the server already has.
 - **Download**: Clients retrieve reconstruction maps (Xorb byte ranges) from the CAS server, then download binary data directly from S3 via pre-signed GET URLs, keeping the Rust server out of the hot data path.
+
+## Roadmap & Feature Support
+We aim to provide drop-in support for the core lifecycle operations of Models and Datasets. For a detailed breakdown of which `huggingface_hub` features are supported natively (✅), partially supported (⚠️), or out of scope (❌), please see the **[Feature Support Matrix](docs/feature_support_matrix.md)**.

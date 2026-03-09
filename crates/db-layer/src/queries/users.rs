@@ -33,7 +33,10 @@ pub async fn create_user(
     Ok(row)
 }
 
-pub async fn find_user_by_username(pool: &PgPool, username: &str) -> anyhow::Result<Option<UserRow>> {
+pub async fn find_user_by_username(
+    pool: &PgPool,
+    username: &str,
+) -> anyhow::Result<Option<UserRow>> {
     let row = sqlx::query_as::<_, UserRow>(
         "SELECT id, username, email, password_hash, full_name, is_org, avatar_url, created_at, updated_at FROM users WHERE username = $1",
     )
@@ -65,13 +68,11 @@ pub async fn create_org(pool: &PgPool, name: &str, creator_id: Uuid) -> anyhow::
     .await?;
 
     // Add creator as owner
-    sqlx::query(
-        "INSERT INTO org_members (org_id, user_id, role) VALUES ($1, $2, 'owner')"
-    )
-    .bind(org.id)
-    .bind(creator_id)
-    .execute(pool)
-    .await?;
+    sqlx::query("INSERT INTO org_members (org_id, user_id, role) VALUES ($1, $2, 'owner')")
+        .bind(org.id)
+        .bind(creator_id)
+        .execute(pool)
+        .await?;
 
     Ok(org)
 }
