@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use shard_parser::{
+    use crate::{
         build_dedup_response_shard, parse_shard,
         types::{
             ChunkInXorb, BOOKEND_HASH, MDB_FILE_FLAG_WITH_METADATA_EXT,
@@ -156,7 +156,7 @@ mod tests {
 
     #[test]
     fn dedup_shard_roundtrip_size() {
-        use shard_parser::ParsedXorb;
+        use crate::ParsedXorb;
         let xorb = ParsedXorb {
             xorb_hash: make_hash(0xAB),
             num_bytes_in_cas: 65536,
