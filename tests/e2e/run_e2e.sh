@@ -205,8 +205,8 @@ sha256    = bytes.fromhex("$SHA256_HEX")
 sz        = $FILE_SIZE
 
 TAG = (
-    b'HFRepoMetaData0'
-    + bytes([85,105,103,69,106,123,129,87,131,165,189,217,92,205,209,74,169])
+    b'HFRepoMetaData'
+    + bytes([0, 85,105,103,69,106,123,129,87,131,165,189,217,92,205,209,74,169])
 )
 assert len(TAG) == 32
 BOOKEND            = bytes([0xFF]*32) + bytes(16)
