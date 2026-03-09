@@ -60,7 +60,7 @@ fi
 
 info "Starting docker-compose stack"
 if [[ "$DO_BUILD" == "true" ]]; then
-  docker compose build cas-server
+  docker compose build xet-server
 fi
 docker compose up -d postgres minio minio-init
 
@@ -74,17 +74,17 @@ timeout 60 bash -c \
   'until curl -sf http://localhost:9000/minio/health/live &>/dev/null; do sleep 2; done'
 ok "MinIO ready"
 
-docker compose up -d cas-server
+docker compose up -d xet-server
 info "Waiting for CAS server /health…"
 timeout 60 bash -c \
-  'until curl -sf http://localhost:3000/health 2>/dev/null | grep -q '"'"'"ok"'"'"'; do sleep 2; done'
+  'until curl -sf http://localhost:8080/health 2>/dev/null | grep -q '"'"'"ok"'"'"'; do sleep 2; done'
 ok "CAS server healthy"
 
 # ── Run test ───────────────────────────────────────────────────────────────────
 if [[ "$USE_DOCKER" == "true" ]]; then
   info "Running hf_xet_roundtrip.py inside docker test-runner…"
   docker compose run --rm \
-    -e CAS_URL=http://cas-server:3000 \
+    -e CAS_URL=http://xet-server:3000 \
     test-runner \
     python3 /tests/e2e/hf_xet_roundtrip.py
 else
@@ -105,7 +105,7 @@ else
   pip install --quiet hf_xet 2>/dev/null \
     || info "hf_xet not available on this platform — Python fallback will be used"
 
-  CAS_URL=http://localhost:3000 \
+  CAS_URL=http://localhost:8080 \
     python3 tests/e2e/hf_xet_roundtrip.py
 
   deactivate

@@ -69,14 +69,14 @@ on_exit() {
 }
 trap on_exit EXIT
 
-CAS_URL="http://localhost:3000"
+CAS_URL="http://localhost:8080"
 
 # =============================================================================
 # Step 1 — Start the stack
 # =============================================================================
 info "Step 1: Starting docker-compose stack"
 if [[ "$DO_BUILD" == "true" ]]; then
-  docker compose build cas-server
+  docker compose build xet-server
 fi
 docker compose up -d postgres minio minio-init
 
@@ -90,7 +90,7 @@ timeout 60 bash -c \
   'until curl -sf http://localhost:9000/minio/health/live &>/dev/null; do sleep 2; done'
 ok "MinIO ready"
 
-docker compose up -d cas-server
+docker compose up -d xet-server
 
 info "  Waiting for CAS server /health…"
 timeout 60 bash -c \

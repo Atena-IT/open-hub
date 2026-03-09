@@ -7,7 +7,7 @@ echo "=== Starting Xet Hub stack ==="
 docker compose up -d --build --wait
 
 echo "=== Running roundtrip test ==="
-HF_ENDPOINT=http://localhost:3000 python3 examples/roundtrip.py
+HF_ENDPOINT=http://localhost:8080 python3 examples/roundtrip.py
 rc=$?
 
 echo "=== Tearing down ==="

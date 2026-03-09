@@ -1,76 +1,107 @@
-# Xet Storage Backend
+# Xet Storage Backend (Hub Alternative)
 
-A private Content-Addressable Storage (CAS) backend in Rust implementing the open [Xet protocol](https://huggingface.co/docs/xet/index), compatible with the `xet-core` / `hf_xet` client.
+A private Content-Addressable Storage (CAS) backend and Hugging Face Hub alternative written in Rust. It implements the open [Xet protocol](https://huggingface.co/docs/xet/index) for chunk-level deduplicated storage, complete with a Hub API compatible with the `huggingface_hub` Python library, an LFS server, and a Web UI.
+
+## Features
+
+- **Xet CAS Server**: Fully implements the 7 CAS protocol endpoints (upload, download, shard parsing, chunk deduplication).
+- **Hugging Face Hub API Compatibility**: Natively supports `huggingface_hub` and `hf_xet` Python clients (`api.create_repo`, `api.upload_file`, `api.hf_hub_download`, etc.).
+- **Smart Deduplication**: Utilizes Content-Defined Chunking (CDC) via Gearhash and Blake3 to identify duplicate blocks, drastically accelerating re-uploads of datasets (like Parquet/CSV) and models.
+- **Git LFS Support**: Fully functional `/info/lfs` API with batch, upload, download, and verify endpoints, acting as a standard Git LFS server.
+- **S3 & PostgreSQL**: Uses MinIO/S3 for highly scalable blob storage (with pre-signed URLs for direct downloads) and PostgreSQL for fast metadata and chunk mappings.
+- **Web UI**: Built-in server-rendered (Tera) UI to browse users, repositories, files, and manage settings.
 
 ## Architecture
 
-```
+The project is structured as a Rust workspace with the following monorepo layout:
+
+```text
 crates/
-  common/        # Config, error types, hash utilities (hash_to_api_string / api_string_to_hash)
-  db-layer/      # sqlx PostgreSQL: chunks, xorbs, file_mappings tables
-  s3-storage/    # aws-sdk-s3: put_object, presign_get (MinIO / S3 compatible)
-  shard-parser/  # Full MDB shard binary format parser + writer
-  cas-server/    # axum HTTP server with all 7 CAS protocol endpoints
+  common/        # Shared config, error types, hash utilities
+  db-layer/      # sqlx PostgreSQL queries and migrations (CAS + Hub tables)
+  s3-storage/    # aws-sdk-s3 with pre-signed GET/PUT support
+  shard-parser/  # MDB shard binary format parser + writer for Xet
+  cas-server/    # Xet CAS API endpoints (/v1/xorbs, /v1/shards, /v1/reconstructions)
+  hub-api/       # HF-compatible Hub API (/api/whoami, NDJSON commits, LFS, Auth)
+  web-ui/        # Tera templates and server-rendered frontend (/-/ system routes)
+  server/        # Unified binary that mounts all routers together
+
+experiments/     # Test scripts for verifying CDC deduplication, LFS, and Hub API
 ```
 
-## Quick Start (local)
+## Quick Start (Docker Compose)
+
+The easiest way to spin up the entire stack locally (Postgres, MinIO S3, minio-init, and the unified `xet-server`) is using Docker Compose.
 
 ```bash
+# 1. Prepare environment variables
 cp .env.example .env
-docker-compose up --build
+
+# 2. Start the services
+docker compose up -d --build
 ```
 
-Services:
-- **cas-server**: http://localhost:3000
-- **MinIO console**: http://localhost:9001 (minioadmin / minioadmin)
+### Services Started:
+- **Xet Server (Hub & CAS)**: http://localhost:8080
+- **MinIO Console**: http://localhost:9001 (minioadmin / minioadmin)
 - **PostgreSQL**: localhost:5432 (xet / xet / xetdb)
 
-## API Endpoints
+*Note: The server handles DB migrations and S3 bucket initialization automatically on startup.*
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/health` | Health check |
-| GET | `/api/{type}s/{id}/xet-read-token/{rev}` | Issue read JWT |
-| GET | `/api/{type}s/{id}/xet-write-token/{rev}` | Issue write JWT |
-| POST | `/v1/xorbs/default/{hash}` | Upload a Xorb |
-| POST | `/v1/shards` | Upload a Shard (registers files) |
-| GET | `/v1/chunks/default-merkledb/{hash}` | Global dedup query |
-| GET | `/v1/reconstructions/{file_id}` | Get file reconstruction |
+## Using with Python (`huggingface_hub`)
 
-## Connecting xet-core
+You can point the official Hugging Face Python client directly to your local instance.
 
-Point the client to this server by obtaining a token from the auth endpoint:
+```python
+import os
+from huggingface_hub import HfApi
 
+# Tell the library to use your custom backend
+os.environ["HF_ENDPOINT"] = "http://localhost:8080"
+# Enable Xet transfer for lightning-fast deduplicated uploads
+os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
+
+api = HfApi()
+
+# Login (or use the web UI to register a token)
+# api.token = "ox_your_token_here"
+
+# Create a repository
+api.create_repo(repo_id="testuser/my-model", repo_type="model")
+
+# Upload a file (Will utilize LFS or Xet CAS for large files)
+api.upload_file(
+    path_or_fileobj="local_model.bin",
+    path_in_repo="model.bin",
+    repo_id="testuser/my-model"
+)
 ```
-GET http://localhost:3000/api/models/my-org/my-model/xet-read-token/main
-```
 
-Response:
-```json
-{
-  "accessToken": "<jwt>",
-  "exp": 1848535668,
-  "casUrl": "http://localhost:3000"
-}
-```
+Check the `experiments/` folder for full Python scripts that demonstrate CDC (Content-Defined Chunking) deduplication with large CSV and Parquet datasets.
 
-## Development
+## Manual Local Development
+
+If you wish to run the server locally outside of Docker (e.g., for `cargo check` or `cargo run`):
 
 ```bash
-# Build all crates
+# 1. Spin up the datastores
+docker compose up -d postgres minio minio-init
+
+# 2. Build the workspace
 cargo build --workspace
 
-# Run tests
-cargo test --workspace
-
-# Run server directly (with .env)
-cargo run -p cas-server
+# 3. Run the unified server
+cargo run -p server
 ```
 
-## Key Protocol Details
+Run integration and unit tests:
+```bash
+cargo test --workspace
+# Run full E2E tests including DB operations (ensure DATABASE_URL/S3_ENDPOINT are set)
+cargo test --workspace -- --include-ignored
+```
 
-- **Hash encoding**: 32-byte hashes in API paths use little-endian u64 reversal per 8-byte group — see `common::hash_to_api_string`.
-- **Chunking**: Gearhash CDC, target 64 KiB, min 8 KiB, max 128 KiB.
-- **Hashing**: Blake3 keyed hash (DATA_KEY for chunks, INTERNAL_NODE_KEY for Xorb MerkleTree, VERIFICATION_KEY for terms).
-- **Shard upload order**: All Xorbs MUST be uploaded before the Shard that references them.
-- **Download**: Clients download Xorb data directly from S3 via pre-signed URLs — the server is not in the download hot path.
+## Protocol Details
+- **Upload Order**: Xorbs (data blobs) are pushed to S3 via pre-signed URLs before the Shard (chunk metadata) that references them.
+- **Deduplication**: Driven by `/v1/chunks`. The client calculates chunk hashes locally and skips uploading chunks the server already has.
+- **Download**: Clients retrieve reconstruction maps (Xorb byte ranges) from the CAS server, then download binary data directly from S3 via pre-signed GET URLs, keeping the Rust server out of the hot data path.
