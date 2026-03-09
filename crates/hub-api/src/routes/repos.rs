@@ -138,6 +138,67 @@ pub async fn repo_info(
     Ok(Json(repo_to_response(&repo_row, siblings, &state.config.hub_base_url)))
 }
 
+pub async fn repo_info_revision(
+    State(state): State<HubState>,
+    Path((owner, repo, _revision)): Path<(String, String, String)>,
+) -> Result<Json<RepoInfoResponse>, AppError> {
+    // For now, ignore revision and return the latest head info
+    let full_name = format!("{}/{}", owner, repo);
+    let repo_row = db_layer::queries::repositories::find_repo_by_full_name(&state.pool, &full_name)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
+
+    let files = db_layer::queries::repo_files::list_files(&state.pool, repo_row.id, None)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    let siblings: Vec<SiblingEntry> = files.iter().map(|f| SiblingEntry {
+        rfilename: f.path.clone(),
+        size: Some(f.size),
+        lfs: if f.is_lfs {
+            f.lfs_oid.as_ref().map(|oid| LfsSiblingInfo {
+                oid: oid.clone(),
+                size: f.size,
+            })
+        } else {
+            None
+        },
+    }).collect();
+
+    Ok(Json(repo_to_response(&repo_row, siblings, &state.config.hub_base_url)))
+}
+
+pub async fn list_models(
+    State(state): State<HubState>,
+) -> Result<Json<Vec<RepoInfoResponse>>, AppError> {
+    let repos = db_layer::queries::repositories::list_repos_by_type(&state.pool, "model")
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    let responses = repos
+        .into_iter()
+        .map(|repo| repo_to_response(&repo, vec![], &state.config.hub_base_url))
+        .collect();
+
+    Ok(Json(responses))
+}
+
+pub async fn list_datasets(
+    State(state): State<HubState>,
+) -> Result<Json<Vec<RepoInfoResponse>>, AppError> {
+    let repos = db_layer::queries::repositories::list_repos_by_type(&state.pool, "dataset")
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    let responses = repos
+        .into_iter()
+        .map(|repo| repo_to_response(&repo, vec![], &state.config.hub_base_url))
+        .collect();
+
+    Ok(Json(responses))
+}
+
 #[derive(Deserialize)]
 pub struct DeleteRepoRequest {
     #[serde(rename = "type")]
@@ -192,7 +253,7 @@ fn repo_to_response(
         tags: vec![],
         downloads: 0,
         likes: 0,
-        created_at: repo.created_at.to_rfc3339(),
+        created_at: repo.created_at.to_rfc3339().replace("+00:00", "Z"),
         siblings,
     }
 }

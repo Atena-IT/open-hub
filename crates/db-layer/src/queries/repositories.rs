@@ -84,3 +84,13 @@ pub async fn delete_repo(pool: &PgPool, repo_id: Uuid) -> anyhow::Result<bool> {
         .await?;
     Ok(result.rows_affected() > 0)
 }
+
+pub async fn list_repos_by_type(pool: &PgPool, repo_type: &str) -> anyhow::Result<Vec<RepoRow>> {
+    let rows = sqlx::query_as::<_, RepoRow>(
+        "SELECT id, owner_id, name, full_name, repo_type, private, head_sha, description, created_at, updated_at FROM repositories WHERE repo_type = $1 ORDER BY updated_at DESC",
+    )
+    .bind(repo_type)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows)
+}

@@ -22,10 +22,15 @@ pub fn hub_api_router(state: HubState) -> Router {
         .route("/api/whoami", get(whoami::whoami))
         .route("/api/whoami-v2", get(whoami::whoami))
         // Repos
+        .route("/api/models", get(repos::list_models))
+        .route("/api/datasets", get(repos::list_datasets))
         .route("/api/repos/create", post(repos::create_repo))
         .route("/api/models/:owner/:repo", get(repos::repo_info))
+        .route("/api/models/:owner/:repo/revision/:revision", get(repos::repo_info_revision))
         .route("/api/datasets/:owner/:repo", get(repos::repo_info))
+        .route("/api/datasets/:owner/:repo/revision/:revision", get(repos::repo_info_revision))
         .route("/api/spaces/:owner/:repo", get(repos::repo_info))
+        .route("/api/spaces/:owner/:repo/revision/:revision", get(repos::repo_info_revision))
         // Tree listing
         .route("/api/models/:owner/:repo/tree/:revision", get(files::tree_list))
         .route("/api/models/:owner/:repo/tree/:revision/*path", get(files::tree_list))
