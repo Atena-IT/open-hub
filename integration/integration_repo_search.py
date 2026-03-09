@@ -10,6 +10,8 @@ import sys
 import json
 import urllib.request
 import urllib.error
+import os
+os.environ['HF_ENDPOINT'] = os.environ.get('HF_ENDPOINT', 'http://localhost:8080')
 from huggingface_hub import HfApi
 
 ENDPOINT = os.environ.get("HF_ENDPOINT", "http://localhost:8080")

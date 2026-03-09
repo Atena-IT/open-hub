@@ -1,0 +1,72 @@
+# Search the Hub
+
+In this tutorial, you will learn how to search models, datasets and spaces on the Hub using `huggingface_hub`.
+
+## How to list repositories ?
+
+`huggingface_hub` library includes an HTTP client [HfApi](/docs/huggingface_hub/v1.6.0/en/package_reference/hf_api#huggingface_hub.HfApi) to interact with the Hub.
+Among other things, it can list models, datasets and spaces stored on the Hub:
+
+```py
+>>> from huggingface_hub import HfApi
+>>> api = HfApi()
+>>> models = api.list_models()
+```
+
+The output of [list_models()](/docs/huggingface_hub/v1.6.0/en/package_reference/hf_api#huggingface_hub.HfApi.list_models) is an iterator over the models stored on the Hub.
+
+Similarly, you can use [list_datasets()](/docs/huggingface_hub/v1.6.0/en/package_reference/hf_api#huggingface_hub.HfApi.list_datasets) to list datasets and [list_spaces()](/docs/huggingface_hub/v1.6.0/en/package_reference/hf_api#huggingface_hub.HfApi.list_spaces) to list Spaces.
+
+## How to filter repositories ?
+
+Listing repositories is great but now you might want to filter your search.
+The list helpers have several attributes like:
+- `filter`
+- `author`
+- `search`
+- ...
+
+Let's see an example to get all models on the Hub that does image classification, have been trained on the imagenet dataset and that runs with PyTorch.
+
+```py
+models = hf_api.list_models(filter=["image-classification", "pytorch", "imagenet"])
+```
+
+While filtering, you can also sort the models and take only the top results. For example,
+the following example fetches the top 5 most downloaded datasets on the Hub:
+
+```py
+>>> list(list_datasets(sort="downloads", limit=5))
+[DatasetInfo(
+	id='argilla/databricks-dolly-15k-curated-en',
+	author='argilla',
+	sha='4dcd1dedbe148307a833c931b21ca456a1fc4281',
+	last_modified=datetime.datetime(2023, 10, 2, 12, 32, 53, tzinfo=datetime.timezone.utc),
+	private=False,
+	downloads=8889377,
+	(...)
+```
+
+To explore available filters on the Hub, visit [models](https://huggingface.co/models) and [datasets](https://huggingface.co/datasets) pages
+in your browser, search for some parameters and look at the values in the URL.
+
+## Using the CLI
+
+You can also list and search for models, datasets, and Spaces using the `hf` command-line interface:
+
+```bash
+# List models
+>>> hf models ls --search "llama" --sort downloads --limit 5
+
+# List datasets
+>>> hf datasets ls --author Qwen
+
+# List Spaces
+>>> hf spaces ls --search "3d"
+
+# Get info about a specific model
+>>> hf models info Lightricks/LTX-2
+```
+
+For more details, see the [CLI guide](./cli#hf-models).
+

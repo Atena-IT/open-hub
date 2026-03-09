@@ -1,10 +1,10 @@
-/// script
-requires-python = ">=3.8"
-dependencies = [
-  "huggingface_hub[hf_transfer]",
-  "requests",
-]
-///
+# /// script
+# requires-python = ">=3.8"
+# dependencies = [
+#   "huggingface_hub[hf_transfer]",
+#   "requests",
+# ]
+# ///
 
 #!/usr/bin/env python3
 """
@@ -81,7 +81,9 @@ def main():
     token = register_user(SERVER, "testuser", "testpassword123")
 
     try:
-        from huggingface_hub import HfApi
+        import os
+os.environ['HF_ENDPOINT'] = os.environ.get('HF_ENDPOINT', 'http://localhost:8080')
+from huggingface_hub import HfApi
     except ImportError:
         print("[SKIP] huggingface_hub not installed. Install with: pip install huggingface_hub")
         print("[OK] Auth roundtrip passed (register + login)")

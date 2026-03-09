@@ -50,6 +50,9 @@ fn test_config() -> AppConfig {
         jwt_secret: TEST_SECRET.into(),
         jwt_expiry_secs: 3600,
         cas_base_url: "http://localhost:3000".into(),
+        hub_base_url: "http://localhost:8080".into(),
+        hub_token_secret: "test_hub_secret".into(),
+        s3_public_endpoint: "http://localhost:9000".into(),
     }
 }
 
@@ -455,6 +458,9 @@ async fn integration_state(db_url: &str) -> AppState {
         jwt_secret: TEST_SECRET.into(),
         jwt_expiry_secs: 3600,
         cas_base_url: "http://localhost:3000".into(),
+        hub_base_url: "http://localhost:8080".into(),
+        hub_token_secret: "test_hub_secret".into(),
+        s3_public_endpoint: "http://localhost:9000".into(),
     };
 
     AppState::new(pool, s3, config)

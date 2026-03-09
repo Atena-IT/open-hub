@@ -1,11 +1,13 @@
-/// script
-requires-python = ">=3.8"
-dependencies = [
-  "huggingface_hub[hf_transfer]",
-  "fsspec",
-]
-///
+# /// script
+# requires-python = ">=3.8"
+# dependencies = [
+#   "huggingface_hub[hf_transfer]",
+#   "fsspec",
+# ]
+# ///
 import os
+import os
+os.environ['HF_ENDPOINT'] = os.environ.get('HF_ENDPOINT', 'http://localhost:8080')
 from huggingface_hub import HfApi, HfFileSystem
 
 os.environ["HF_ENDPOINT"] = os.environ.get("HF_ENDPOINT", "http://localhost:8080")

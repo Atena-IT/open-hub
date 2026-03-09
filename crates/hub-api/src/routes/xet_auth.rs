@@ -2,7 +2,7 @@ use crate::auth;
 use crate::state::HubState;
 use axum::{
     extract::{Path, State},
-    http::{HeaderMap, StatusCode},
+    http::HeaderMap,
     response::{IntoResponse, Response},
     Json,
 };
@@ -44,7 +44,7 @@ async fn get_xet_token_impl(
         .ok_or_else(|| AppError::Unauthorized("missing bearer token".into()))?;
 
     // Resolve user (ensure they exist and have access)
-    let user_id = auth::resolve_bearer_token(&state.pool, token).await?;
+    let _user_id = auth::resolve_bearer_token(&state.pool, token).await?;
 
     let owner = params
         .get("owner")

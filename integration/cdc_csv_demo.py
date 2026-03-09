@@ -1,16 +1,18 @@
-/// script
-requires-python = ">=3.8"
-dependencies = [
-  "requests",
-  "pandas",
-]
-///
+# /// script
+# requires-python = ">=3.8"
+# dependencies = [
+#   "requests",
+#   "pandas",
+# ]
+# ///
 
 import os
 import time
 import requests
 import pandas as pd
 import numpy as np
+import os
+os.environ['HF_ENDPOINT'] = os.environ.get('HF_ENDPOINT', 'http://localhost:8080')
 from huggingface_hub import HfApi
 
 # Enable hf_transfer for potentially testing xet/lfs fast paths

@@ -8,7 +8,7 @@ use axum::{
     body::Body,
     extract::{Path, State},
     http::StatusCode,
-    response::{IntoResponse, Response},
+    response::Response,
 };
 use tracing::instrument;
 

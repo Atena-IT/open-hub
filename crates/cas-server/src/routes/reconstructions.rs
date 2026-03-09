@@ -79,7 +79,7 @@ pub async fn get_reconstruction(
 
         // We need the xorb byte size to provide url_range.
         // Use 0-MAX as a conservative fallback; clients specify their own Range anyway.
-        let xorb_size: i64 =
+        let _xorb_size: i64 =
             sqlx::query_scalar::<_, i64>("SELECT size_bytes FROM xorbs WHERE hash = $1")
                 .bind(raw.as_slice())
                 .fetch_optional(state.pool.as_ref())

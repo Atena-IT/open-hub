@@ -379,7 +379,7 @@ pub async fn resolve_file(
     if file.is_lfs {
         let oid = file.lfs_oid.as_deref().unwrap_or("");
 
-        let mut builder = Response::builder()
+        let builder = Response::builder()
             .status(StatusCode::OK)
             .header("Content-Type", "application/octet-stream")
             .header("Content-Length", file.size.to_string())
