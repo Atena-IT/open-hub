@@ -101,7 +101,15 @@ ok "CAS server healthy"
 # Step 2 — Obtain a write token
 # =============================================================================
 info "Step 2: Fetching write token"
-TOKEN_JSON=$(curl -sf "$CAS_URL/api/models/e2e-ns/e2e-repo/xet-write-token/main")
+
+info "Registering a user to get Hub API token"
+HUB_TOKEN_JSON=$(curl -sf -X POST -H "Content-Type: application/json" -d "{\"username\": \"e2e_user_$RANDOM\", \"password\": \"password\"}" "$CAS_URL/api/auth/register")
+HUB_TOKEN=$(echo "$HUB_TOKEN_JSON" | jq -r '.token')
+[[ -n "$HUB_TOKEN" && "$HUB_TOKEN" != "null" ]] \
+  || fail "Could not register user: $HUB_TOKEN_JSON"
+
+info "Fetching CAS write token with Hub API token"
+TOKEN_JSON=$(curl -sf -H "Authorization: Bearer $HUB_TOKEN" "$CAS_URL/api/models/e2e-ns/e2e-repo/xet-write-token/main")
 ACCESS_TOKEN=$(echo "$TOKEN_JSON" | jq -r '.accessToken')
 [[ -n "$ACCESS_TOKEN" && "$ACCESS_TOKEN" != "null" ]] \
   || fail "Could not obtain write token: $TOKEN_JSON"
