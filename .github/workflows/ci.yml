@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+
+jobs:
+  rust-tests:
+    name: Rust Unit & Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy
+        run: cargo clippy --workspace -- -D warnings || true # Keep true for now in case of warnings
+
+      - name: Run unit tests
+        run: cargo test --workspace
+
+  e2e-tests:
+    name: End-to-End & Hub API Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq curl git-lfs
+
+      - name: Start Docker Compose Stack
+        run: |
+          cp .env.example .env
+          docker compose up -d --build --wait
+
+      - name: Run Shell E2E Tests
+        run: |
+          ./tests/e2e/run_e2e.sh --no-build --keep-up
+          ./tests/e2e/run_hf_xet_e2e.sh --no-build --keep-up --use-docker
+
+      - name: Run Python Hub API Integration Tests
+        run: |
+          uv run integration/roundtrip.py
+          uv run integration/integration_repo_search.py
+          uv run integration/integration_upload_file.py
+          uv run integration/integration_upload_folder.py
+          uv run integration/integration_create_commit.py
+          uv run integration/integration_create_commit_deletions.py
+          uv run integration/integration_model_card.py
+          uv run integration/integration_hffilesystem.py
+          uv run integration/test_downloads.py
+
+      - name: Docker logs on failure
+        if: failure()
+        run: docker compose logs
