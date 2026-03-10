@@ -40,6 +40,7 @@ import os
 import struct
 import sys
 import tempfile
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -62,7 +63,7 @@ MINIO_INTERNAL = os.environ.get("MINIO_INTERNAL_HOST", "minio:9000")
 MINIO_EXTERNAL = os.environ.get("MINIO_EXTERNAL_HOST", "localhost:9000")
 
 REPO_TYPE = "model"   # singular — URL becomes /api/models/...
-NAMESPACE = "hf-xet-test"
+NAMESPACE = f"hf-xet-test-{uuid.uuid4().hex[:8]}"
 REPO      = "roundtrip"
 REVISION  = "main"
 
@@ -288,13 +289,29 @@ def build_shard(
 
 # ── CAS HTTP helpers ───────────────────────────────────────────────────────────
 
-def _get_token(scope: str) -> str:
+def _get_token(scope: str, hub_token: str) -> str:
     """Returns the access_token JWT.  Always uses CAS_URL directly."""
     url = (f"{CAS_URL}/api/{REPO_TYPE}s/{NAMESPACE}/{REPO}"
            f"/xet-{scope}-token/{REVISION}")
-    r = requests.get(url, timeout=10)
+    r = requests.get(url, headers={"Authorization": f"Bearer {hub_token}"}, timeout=10)
     r.raise_for_status()
     return r.json()["accessToken"]
+
+def _register_and_create_repo() -> str:
+    print(f"    Registering user {NAMESPACE}…")
+    r = requests.post(f"{CAS_URL}/api/auth/register", json={"username": NAMESPACE, "password": "password"}, timeout=10)
+    r.raise_for_status()
+    hub_token = r.json()["token"]
+
+    print(f"    Creating repo {NAMESPACE}/{REPO}…")
+    r = requests.post(
+        f"{CAS_URL}/api/repos/create",
+        headers={"Authorization": f"Bearer {hub_token}"},
+        json={"name": REPO, "type": REPO_TYPE, "private": False},
+        timeout=10
+    )
+    r.raise_for_status()
+    return hub_token
 
 
 def upload_xorb(token: str, xorb_hash: bytes, xorb_bytes: bytes) -> bool:
@@ -431,7 +448,8 @@ def main() -> None:
 
     # ── Step 2: get write token ────────────────────────────────────────────────
     step(2, "Obtaining write token")
-    write_token = _get_token("write")
+    hub_token = _register_and_create_repo()
+    write_token = _get_token("write", hub_token)
     print(f"    casUrl: {CAS_URL}")
 
     # ── Step 3: upload ─────────────────────────────────────────────────────────
@@ -488,7 +506,7 @@ def main() -> None:
 
     # ── Step 4: read token + reconstruction ───────────────────────────────────
     step(4, "Querying reconstruction")
-    read_token = _get_token("read")
+    read_token = _get_token("read", hub_token)
 
     if using_hf_xet and file_hash_raw is None:
         print("  hf_xet upload succeeded but returned an opaque hash.")
