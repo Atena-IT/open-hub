@@ -56,11 +56,11 @@ HF_FILE_URL   = os.environ.get("HF_FILE_URL",
     "https://huggingface.co/bert-base-uncased/resolve/main/vocab.txt")
 SKIP_DOWNLOAD = os.environ.get("SKIP_HF_DOWNLOAD", "0") == "1"
 
-# When docker-compose generates presigned URLs with the MinIO internal hostname
-# (e.g. http://minio:9000/...) they are unreachable from the host.  Set
-# MINIO_INTERNAL_HOST and MINIO_EXTERNAL_HOST to remap them.
-MINIO_INTERNAL = os.environ.get("MINIO_INTERNAL_HOST", "minio:9000")
-MINIO_EXTERNAL = os.environ.get("MINIO_EXTERNAL_HOST", "localhost:9000")
+# When docker-compose generates presigned URLs with the MinIO external hostname
+# (e.g. http://localhost:9000/...) they may be unreachable from inside a docker container.
+# Set S3_REWRITE_FROM and S3_REWRITE_TO to remap them.
+S3_REWRITE_FROM = os.environ.get("S3_REWRITE_FROM")
+S3_REWRITE_TO = os.environ.get("S3_REWRITE_TO")
 
 REPO_TYPE = "model"   # singular — URL becomes /api/models/...
 NAMESPACE = f"hf-xet-test-{uuid.uuid4().hex[:8]}"
@@ -71,8 +71,10 @@ CACHE_PATH = Path(tempfile.gettempdir()) / "xet_e2e_vocab.txt"
 
 
 def normalize_url(url: str) -> str:
-    """Rewrite docker-internal MinIO URLs to the externally reachable host."""
-    return url.replace(f"http://{MINIO_INTERNAL}", f"http://{MINIO_EXTERNAL}")
+    """Rewrite S3 presigned URLs if needed (e.g. localhost -> minio inside docker)."""
+    if S3_REWRITE_FROM and S3_REWRITE_TO:
+        return url.replace(S3_REWRITE_FROM, S3_REWRITE_TO)
+    return url
 
 
 # ── Optional dependencies ──────────────────────────────────────────────────────
