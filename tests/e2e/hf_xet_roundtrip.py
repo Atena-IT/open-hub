@@ -220,8 +220,8 @@ def parse_xorb(data: bytes) -> bytes:
 # ── MDB shard format ───────────────────────────────────────────────────────────
 
 MDB_SHARD_HEADER_TAG = (
-    b"HFRepoMetaData0"
-    + bytes([85, 105, 103, 69, 106, 123, 129, 87,
+    b"HFRepoMetaData"
+    + bytes([0, 85, 105, 103, 69, 106, 123, 129, 87,
              131, 165, 189, 217, 92, 205, 209, 74, 169])
 )
 assert len(MDB_SHARD_HEADER_TAG) == 32
