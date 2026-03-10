@@ -2,18 +2,28 @@
 # requires-python = ">=3.8"
 # dependencies = [
 #   "huggingface_hub[hf_transfer]",
+#   "requests",
 # ]
 # ///
 import os
-import os
 os.environ['HF_ENDPOINT'] = os.environ.get('HF_ENDPOINT', 'http://localhost:8080')
 from huggingface_hub import HfApi, ModelCard
+import requests
 
-os.environ["HF_ENDPOINT"] = os.environ.get("HF_ENDPOINT", "http://localhost:8080")
 os.environ["CURL_CA_BUNDLE"] = ""
 
+def get_token(username="test-user", password="password"):
+    endpoint = os.environ["HF_ENDPOINT"]
+    resp = requests.post(f"{endpoint}/api/auth/register", json={"username": username, "password": password})
+    if resp.status_code == 409:
+        resp = requests.post(f"{endpoint}/api/auth/login", json={"username": username, "password": password})
+    resp.raise_for_status()
+    return resp.json()["token"]
+
 def main():
-    api = HfApi()
+    token = get_token()
+    os.environ["HF_TOKEN"] = token
+    api = HfApi(token=token)
     repo_id = "test-user/test-model-card"
     print(f"Creating repo {repo_id}...")
     try:
