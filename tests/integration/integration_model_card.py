@@ -57,6 +57,23 @@ This is a mock model card for integration testing.
     fetched_card = ModelCard.load(repo_id)
     print(f"Fetched card tags: {fetched_card.data.tags}")
     assert "text-classification" in fetched_card.data.tags
+    
+    print("Testing invalid YAML frontmatter validation...")
+    invalid_content = """---
+language:
+- en
+license: mit
+  invalid_indentation: true
+---
+
+# Test Model Card
+"""
+    try:
+        ModelCard(invalid_content).push_to_hub(repo_id)
+        assert False, "Should have failed with invalid YAML"
+    except Exception as e:
+        print(f"Caught expected error for invalid YAML: {e}")
+
     print("Model card test passed!")
 
 if __name__ == "__main__":
