@@ -6,15 +6,15 @@
 #   ./tests/e2e/run_hf_xet_e2e.sh [--no-build] [--keep-up] [--use-docker]
 #
 # Flags:
-#   --no-build    Skip `docker compose build`
+#   --no-build    Skip `docker compose -f deployment/docker-compose.yml build`
 #   --keep-up     Leave the docker-compose stack running after the test
 #   --use-docker  Run the Python test inside the docker-compose test-runner
 #                 service instead of in a local Python venv
 #
 # Requirements (local mode):
-#   python3, pip, docker compose v2, curl
+#   python3, pip, docker compose -f deployment/docker-compose.yml v2, curl
 # Requirements (docker mode):
-#   docker compose v2
+#   docker compose -f deployment/docker-compose.yml v2
 # =============================================================================
 set -euo pipefail
 
@@ -44,9 +44,9 @@ cd "$REPO_ROOT"
 on_exit() {
   if [[ "$KEEP_UP" == "false" ]]; then
     info "Tearing down docker-compose stack"
-    docker compose down -v --remove-orphans 2>/dev/null || true
+    docker compose -f deployment/docker-compose.yml down -v --remove-orphans 2>/dev/null || true
   else
-    info "Stack left running. Stop with: docker compose down -v"
+    info "Stack left running. Stop with: docker compose -f deployment/docker-compose.yml down -v"
   fi
 }
 trap on_exit EXIT
@@ -60,13 +60,13 @@ fi
 
 info "Starting docker-compose stack"
 if [[ "$DO_BUILD" == "true" ]]; then
-  docker compose build xet-server
+  docker compose -f deployment/docker-compose.yml build xet-server
 fi
-docker compose up -d postgres minio minio-init
+docker compose -f deployment/docker-compose.yml up -d postgres minio minio-init
 
 info "Waiting for Postgres…"
 timeout 60 bash -c \
-  'until docker compose exec -T postgres pg_isready -U xet -d xetdb &>/dev/null; do sleep 2; done'
+  'until docker compose -f deployment/docker-compose.yml exec -T postgres pg_isready -U xet -d xetdb &>/dev/null; do sleep 2; done'
 ok "Postgres ready"
 
 info "Waiting for MinIO…"
@@ -74,7 +74,7 @@ timeout 60 bash -c \
   'until curl -sf http://localhost:9000/minio/health/live &>/dev/null; do sleep 2; done'
 ok "MinIO ready"
 
-docker compose up -d xet-server
+docker compose -f deployment/docker-compose.yml up -d xet-server
 info "Waiting for CAS server /health…"
 timeout 60 bash -c \
   'until curl -sf http://localhost:8080/health 2>/dev/null | grep -q '"'"'"ok"'"'"'; do sleep 2; done'
@@ -83,7 +83,7 @@ ok "CAS server healthy"
 # ── Run test ───────────────────────────────────────────────────────────────────
 if [[ "$USE_DOCKER" == "true" ]]; then
   info "Running hf_xet_roundtrip.py inside docker test-runner…"
-  docker compose run --rm \
+  docker compose -f deployment/docker-compose.yml run --rm \
     -e CAS_URL=http://xet-server:3000 \
     test-runner \
     python3 /tests/e2e/hf_xet_roundtrip.py

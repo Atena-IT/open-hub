@@ -35,7 +35,7 @@ The easiest way to spin up the entire stack locally (Postgres, MinIO S3, minio-i
 
 ```bash
 # 1. Prepare environment variables
-cp .env.example .env
+cp deployment/.env.example .env
 
 # 2. Start the services
 docker compose up -d --build

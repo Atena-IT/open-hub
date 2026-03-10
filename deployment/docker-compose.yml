@@ -1,7 +1,7 @@
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     environment:
       POSTGRES_USER: xet
       POSTGRES_PASSWORD: xet
@@ -45,8 +45,10 @@ services:
       "
 
   xet-server:
-    build: .
-    env_file: .env
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    env_file: ../.env
     ports:
       - "8080:3000"
     environment:
@@ -71,7 +73,7 @@ services:
 
   test-runner:
     build:
-      context: .
+      context: ..
       dockerfile: tests/e2e/Dockerfile.test-runner
     volumes:
       - ./tests:/tests:ro
