@@ -70,7 +70,7 @@ pub async fn validate_yaml(
 ) -> Result<Json<ValidateYamlResponse>, AppError> {
     let mut errors = vec![];
     let content = req.content;
-    
+
     // Extract YAML frontmatter (between --- and ---)
     if content.starts_with("---") {
         let mut parts = content.split("---");
@@ -83,17 +83,10 @@ pub async fn validate_yaml(
             }
         }
     }
-    
+
     Ok(Json(ValidateYamlResponse {
         warnings: vec![],
         errors,
-    }))
-}
-    Json(_req): Json<ValidateYamlRequest>,
-) -> Result<Json<ValidateYamlResponse>, AppError> {
-    Ok(Json(ValidateYamlResponse {
-        warnings: vec![],
-        errors: vec![],
     }))
 }
 
@@ -177,18 +170,18 @@ pub async fn update_repo_settings(
     let token = auth::extract_bearer(&headers)
         .ok_or_else(|| AppError::Unauthorized("missing bearer token".into()))?;
     let user_id = auth::resolve_bearer_token(&state.pool, token).await?;
-    
+
     let full_name = format!("{}/{}", owner, repo);
     let repo_row = db_layer::queries::repositories::find_repo_by_full_name(&state.pool, &full_name)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?
         .ok_or_else(|| AppError::NotFound(format!("repo {} not found", full_name)))?;
-        
+
     if repo_row.owner_id != user_id {
         return Err(AppError::Forbidden("not the repo owner".into()));
     }
-    
-    // Ideally we would update the visibility in the database here, but the queries module 
+
+    // Ideally we would update the visibility in the database here, but the queries module
     // might not have `update_repo_visibility` yet. For now, we will return success to make the client happy.
     // Real implementation would be `db_layer::queries::repositories::update_repo_visibility(&state.pool, repo_row.id, req.private.unwrap_or(false)).await?`
     Ok(Json(serde_json::json!({
@@ -231,39 +224,6 @@ pub async fn repo_info(
         siblings,
         &state.config.hub_base_url,
     )))
-}
-
-#[derive(Deserialize)]
-pub struct UpdateRepoSettingsRequest {
-    pub private: Option<bool>,
-}
-
-pub async fn update_repo_settings(
-    State(state): State<HubState>,
-    headers: HeaderMap,
-    Path((owner, repo)): Path<(String, String)>,
-    Json(req): Json<UpdateRepoSettingsRequest>,
-) -> Result<Json<serde_json::Value>, AppError> {
-    let token = auth::extract_bearer(&headers)
-        .ok_or_else(|| AppError::Unauthorized("missing bearer token".into()))?;
-    let user_id = auth::resolve_bearer_token(&state.pool, token).await?;
-    
-    let full_name = format!("{}/{}", owner, repo);
-    let repo_row = db_layer::queries::repositories::find_repo_by_full_name(&state.pool, &full_name)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?
-        .ok_or_else(|| AppError::NotFound(format!("repo {} not found", full_name)))?;
-        
-    if repo_row.owner_id != user_id {
-        return Err(AppError::Forbidden("not the repo owner".into()));
-    }
-    
-    // Ideally we would update the visibility in the database here, but the queries module 
-    // might not have `update_repo_visibility` yet. For now, we will return success to make the client happy.
-    // Real implementation would be `db_layer::queries::repositories::update_repo_visibility(&state.pool, repo_row.id, req.private.unwrap_or(false)).await?`
-    Ok(Json(serde_json::json!({
-        "private": req.private.unwrap_or(repo_row.private)
-    })))
 }
 
 pub async fn repo_info_revision(

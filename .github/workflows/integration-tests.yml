@@ -55,7 +55,8 @@ jobs:
       - name: build images with Buildx Bake
         uses: docker/bake-action@v5
         with:
-          files: deployment/docker-compose.yml
+          workdir: deployment
+          files: docker-compose.yml
           load: true
           set: |
             xet-server.cache-from=type=gha,scope=xet-server
@@ -65,7 +66,7 @@ jobs:
 
       - name: start Docker Compose stack
         run: |
-          docker compose up -d --wait
+          docker compose -f deployment/docker-compose.yml up -d --wait
 
       - name: run shell e2e tests
         run: |
@@ -88,4 +89,4 @@ jobs:
         if: failure()
         run: |
           touch .env
-          docker compose logs
+          docker compose -f deployment/docker-compose.yml logs

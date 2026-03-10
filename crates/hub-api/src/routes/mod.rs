@@ -26,19 +26,28 @@ pub fn hub_api_router(state: HubState) -> Router {
         .route("/api/datasets", get(repos::list_datasets))
         .route("/api/repos/create", post(repos::create_repo))
         .route("/api/models/:owner/:repo", get(repos::repo_info))
-        .route("/api/models/:owner/:repo/settings", axum::routing::put(repos::update_repo_settings))
+        .route(
+            "/api/models/:owner/:repo/settings",
+            axum::routing::put(repos::update_repo_settings),
+        )
         .route(
             "/api/models/:owner/:repo/revision/:revision",
             get(repos::repo_info_revision),
         )
         .route("/api/datasets/:owner/:repo", get(repos::repo_info))
-        .route("/api/datasets/:owner/:repo/settings", axum::routing::put(repos::update_repo_settings))
+        .route(
+            "/api/datasets/:owner/:repo/settings",
+            axum::routing::put(repos::update_repo_settings),
+        )
         .route(
             "/api/datasets/:owner/:repo/revision/:revision",
             get(repos::repo_info_revision),
         )
         .route("/api/spaces/:owner/:repo", get(repos::repo_info))
-        .route("/api/spaces/:owner/:repo/settings", axum::routing::put(repos::update_repo_settings))
+        .route(
+            "/api/spaces/:owner/:repo/settings",
+            axum::routing::put(repos::update_repo_settings),
+        )
         .route(
             "/api/spaces/:owner/:repo/revision/:revision",
             get(repos::repo_info_revision),

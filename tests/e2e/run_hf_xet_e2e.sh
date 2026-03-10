@@ -54,8 +54,8 @@ trap on_exit EXIT
 # ── Start stack ────────────────────────────────────────────────────────────────
 # Ensure .env exists (needed by docker-compose env_file directive)
 if [[ ! -f "$REPO_ROOT/.env" ]]; then
-  info ".env not found — copying from .env.example"
-  cp "$REPO_ROOT/.env.example" "$REPO_ROOT/.env"
+  info ".env not found — copying from deployment/.env.example"
+  cp "$REPO_ROOT/deployment/.env.example" "$REPO_ROOT/.env"
 fi
 
 info "Starting docker-compose stack"
