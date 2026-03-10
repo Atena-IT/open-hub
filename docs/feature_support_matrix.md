@@ -9,7 +9,7 @@ This matrix details the features of the Hugging Face Hub ecosystem and their cur
 | **Commits** | Atomic transactions adding, modifying, or deleting multiple files via NDJSON. | Yes | ✅ |
 | **Manage Repositories** | Create, delete, and fetch metadata for Models and Datasets. | Yes | ✅ |
 | **Search / Listing** | `api.list_models()` and `api.list_datasets()` iteration support. | Yes | ✅ |
-| **Model/Dataset Cards** | Auto-parsing YAML frontmatter in `README.md` and pushing cards to the Hub. | Yes | ⚠️ |
+| **Model/Dataset Cards** | Auto-parsing YAML frontmatter in `README.md` and pushing cards to the Hub. | Yes | ✅ |
 | **HF File System (`hf_fs`)** | Interacting with the Hub via the `fsspec` filesystem abstraction. | Yes | ✅ |
 | **CLI tools** | Compatible with `huggingface-cli` login, upload, and download commands. | Yes | ✅ |
 | **Branching / PRs** | Creating Git branches, making PRs, and reviewing via the API. | Yes | ❌ |
