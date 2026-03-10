@@ -165,6 +165,7 @@ pub fn hub_api_router(state: HubState) -> Router {
             get(xet_auth::get_xet_write_token),
         )
         // Delete repo
+        .route("/api/validate-yaml", post(repos::validate_yaml))
         .route("/api/repos/delete", delete(repos::delete_repo))
         .with_state(state)
 }

@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.8"
 # dependencies = [
-#   "huggingface_hub[hf_transfer]",
+#   "huggingface_hub",
 #   "requests"
 # ]
 # ///

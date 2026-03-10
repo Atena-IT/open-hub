@@ -52,6 +52,28 @@ pub struct LfsSiblingInfo {
     pub size: i64,
 }
 
+#[derive(Deserialize)]
+pub struct ValidateYamlRequest {
+    pub content: String,
+    #[serde(rename = "repoType")]
+    pub repo_type: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct ValidateYamlResponse {
+    pub warnings: Vec<serde_json::Value>,
+    pub errors: Vec<serde_json::Value>,
+}
+
+pub async fn validate_yaml(
+    Json(_req): Json<ValidateYamlRequest>,
+) -> Result<Json<ValidateYamlResponse>, AppError> {
+    Ok(Json(ValidateYamlResponse {
+        warnings: vec![],
+        errors: vec![],
+    }))
+}
+
 pub async fn create_repo(
     State(state): State<HubState>,
     headers: HeaderMap,
