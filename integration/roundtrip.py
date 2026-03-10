@@ -82,8 +82,8 @@ def main():
 
     try:
         import os
-os.environ['HF_ENDPOINT'] = os.environ.get('HF_ENDPOINT', 'http://localhost:8080')
-from huggingface_hub import HfApi
+        os.environ['HF_ENDPOINT'] = os.environ.get('HF_ENDPOINT', 'http://localhost:8080')
+        from huggingface_hub import HfApi
     except ImportError:
         print("[SKIP] huggingface_hub not installed. Install with: pip install huggingface_hub")
         print("[OK] Auth roundtrip passed (register + login)")
