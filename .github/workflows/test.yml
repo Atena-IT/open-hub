@@ -3,8 +3,26 @@ name: CI
 on:
   push:
     branches: [ "master", "main" ]
+    paths:
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'tests/**'
+      - 'integration/**'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - '.github/workflows/test.yml'
   pull_request:
     branches: [ "master", "main" ]
+    paths:
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'tests/**'
+      - 'integration/**'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - '.github/workflows/test.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
