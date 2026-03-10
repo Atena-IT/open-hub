@@ -526,10 +526,18 @@ def main() -> None:
     step(5, "Downloading xorb via presigned URL")
     # fetch_info: {xorb_api_hash: [{url, range, url_range}]}
     first_entry = next(iter(fetch_info.values()))[0]
-    presigned   = normalize_url(first_entry["url"])
+    original_url = first_entry["url"]
+    presigned = normalize_url(original_url)
     print(f"    {presigned[:72]}…")
 
-    r = requests.get(presigned, timeout=120)
+    headers = {}
+    if S3_REWRITE_FROM and S3_REWRITE_TO and original_url != presigned:
+        # If we rewrote the URL (e.g. localhost -> minio), we must preserve the original
+        # Host header so the S3 presigned URL signature remains valid!
+        original_host = S3_REWRITE_FROM.split("://")[-1]
+        headers["Host"] = original_host
+
+    r = requests.get(presigned, headers=headers, timeout=120)
     r.raise_for_status()
     downloaded_xorb = r.content
     print(f"    Downloaded: {len(downloaded_xorb):,} bytes")
