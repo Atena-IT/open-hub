@@ -52,7 +52,7 @@ def register_user(base_url, username, password):
 
 def main():
     print(f"Using endpoint: {ENDPOINT}")
-    token = register_user(ENDPOINT, "testuser", "testpass")
+    token = register_user(ENDPOINT, "testuser", "testpassword123")
     os.environ["HF_TOKEN"] = token
     
     api = HfApi()
