@@ -28,7 +28,7 @@ axum         = { version = "0.7", features = ["json"] }
 tower        = { version = "0.4", features = ["util"] }
 tower-http   = { version = "0.6", features = ["trace", "cors"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "fmt"] }
-jsonwebtoken = "10"
+jsonwebtoken = { version = "10", features = ["rust_crypto"] }
 http         = "1"
 hex              = "0.4"
 blake3           = "1"
