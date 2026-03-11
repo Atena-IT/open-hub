@@ -197,7 +197,10 @@ pub fn lfs_api_router(state: HubState) -> Router {
             "/spaces/{owner}/{repo}/info/lfs/objects/batch",
             post(lfs::lfs_batch),
         )
-        .route("/{owner}/{repo}/info/lfs/objects/batch", post(lfs::lfs_batch))
+        .route(
+            "/{owner}/{repo}/info/lfs/objects/batch",
+            post(lfs::lfs_batch),
+        )
         // Combined GET + PUT on same path
         .route(
             "/models/{owner}/{repo}/info/lfs/objects/{oid}",
