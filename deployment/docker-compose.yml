@@ -76,7 +76,7 @@ services:
       context: ..
       dockerfile: tests/e2e/Dockerfile.test-runner
     volumes:
-      - ./tests:/tests:ro
+      - ../tests:/tests:ro
     environment:
       CAS_URL: http://xet-server:3000
       S3_REWRITE_FROM: http://localhost:9000
