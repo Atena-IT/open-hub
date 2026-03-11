@@ -39,10 +39,10 @@ pub fn web_router(hub_state: HubState, template_dir: &str) -> Router {
             get(pages::new_repo_page).post(pages::new_repo_submit),
         )
         .route("/", get(pages::home))
-        .route("/:owner", get(pages::user_profile))
-        .route("/:owner/:repo", get(pages::repo_detail))
-        .route("/:owner/:repo/tree/:revision", get(pages::repo_tree))
-        .route("/:owner/:repo/tree/:revision/*path", get(pages::repo_tree))
+        .route("/{owner}", get(pages::user_profile))
+        .route("/{owner}/{repo}", get(pages::repo_detail))
+        .route("/{owner}/{repo}/tree/{revision}", get(pages::repo_tree))
+        .route("/{owner}/{repo}/tree/{revision}/{*path}", get(pages::repo_tree))
         .nest_service("/static", ServeDir::new("static"))
         .with_state(state)
 }
