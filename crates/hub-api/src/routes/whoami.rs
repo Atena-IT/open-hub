@@ -1,9 +1,9 @@
-use axum::{extract::State, Json};
-use axum::http::HeaderMap;
-use serde::Serialize;
-use common::AppError;
-use crate::state::HubState;
 use crate::auth;
+use crate::state::HubState;
+use axum::http::HeaderMap;
+use axum::{extract::State, Json};
+use common::AppError;
+use serde::Serialize;
 
 #[derive(Serialize)]
 pub struct WhoamiResponse {
@@ -40,7 +40,11 @@ pub async fn whoami(
         user_type: "user".to_string(),
         id: user.id.to_string(),
         name: user.username.clone(),
-        fullname: if user.full_name.is_empty() { user.username } else { user.full_name },
+        fullname: if user.full_name.is_empty() {
+            user.username
+        } else {
+            user.full_name
+        },
         email: user.email,
         email_verified: false,
         can_pay: false,

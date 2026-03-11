@@ -42,14 +42,17 @@ const TEST_SECRET: &str = "test-jwt-secret-for-integration-only";
 /// Build a config for tests that need no external services.
 fn test_config() -> AppConfig {
     AppConfig {
-        bind_addr:       "127.0.0.1:0".into(),
-        database_url:    "postgresql://test:test@127.0.0.1:5555/noconnect".into(),
-        s3_endpoint:     Some("http://127.0.0.1:19000".into()),
-        s3_bucket:       "test-bucket".into(),
-        s3_region:       "us-east-1".into(),
-        jwt_secret:      TEST_SECRET.into(),
+        bind_addr: "127.0.0.1:0".into(),
+        database_url: "postgresql://test:test@127.0.0.1:5555/noconnect".into(),
+        s3_endpoint: Some("http://127.0.0.1:19000".into()),
+        s3_bucket: "test-bucket".into(),
+        s3_region: "us-east-1".into(),
+        jwt_secret: TEST_SECRET.into(),
         jwt_expiry_secs: 3600,
-        cas_base_url:    "http://localhost:3000".into(),
+        cas_base_url: "http://localhost:3000".into(),
+        hub_base_url: "http://localhost:8080".into(),
+        hub_token_secret: "test_hub_secret".into(),
+        s3_public_endpoint: Some("http://localhost:9000".into()),
     }
 }
 
@@ -78,7 +81,7 @@ fn lazy_pool(url: &str) -> db_layer::PgPool {
 /// Build an AppState that needs no live infrastructure.
 async fn infra_free_state() -> AppState {
     let pool = lazy_pool("postgresql://test:test@127.0.0.1:5555/noconnect");
-    let s3   = fake_s3().await;
+    let s3 = fake_s3().await;
     AppState::new(pool, s3, test_config())
 }
 
@@ -91,10 +94,10 @@ fn make_jwt(secret: &str, scope: &str) -> String {
         .unwrap()
         .as_secs();
     let claims = Claims {
-        sub:      "models/testns/testrepo".into(),
-        scope:    scope.to_owned(),
+        sub: "models/testns/testrepo".into(),
+        scope: scope.to_owned(),
         revision: "main".into(),
-        exp:      (now + 3600) as usize,
+        exp: (now + 3600) as usize,
     };
     encode(
         &JwtHeader::new(Algorithm::HS256),
@@ -106,10 +109,10 @@ fn make_jwt(secret: &str, scope: &str) -> String {
 
 fn make_expired_jwt(secret: &str) -> String {
     let claims = Claims {
-        sub:      "models/testns/testrepo".into(),
-        scope:    "read".into(),
+        sub: "models/testns/testrepo".into(),
+        scope: "read".into(),
         revision: "main".into(),
-        exp:      1_000_000, // far in the past
+        exp: 1_000_000, // far in the past
     };
     encode(
         &JwtHeader::new(Algorithm::HS256),
@@ -128,7 +131,7 @@ async fn json_body(body: axum::body::Body) -> Value {
 
 #[tokio::test]
 async fn test_issue_read_token_returns_valid_jwt() {
-    let state  = infra_free_state().await;
+    let state = infra_free_state().await;
     let router = build_router(state);
 
     let req = Request::builder()
@@ -141,8 +144,11 @@ async fn test_issue_read_token_returns_valid_jwt() {
     assert_eq!(resp.status(), StatusCode::OK);
 
     let body = json_body(resp.into_body()).await;
-    assert!(body["accessToken"].is_string(), "accessToken missing: {body}");
-    assert!(body["exp"].is_number(),         "exp missing: {body}");
+    assert!(
+        body["accessToken"].is_string(),
+        "accessToken missing: {body}"
+    );
+    assert!(body["exp"].is_number(), "exp missing: {body}");
     assert_eq!(body["casUrl"], "http://localhost:3000");
 
     // Decode and verify claims
@@ -155,13 +161,13 @@ async fn test_issue_read_token_returns_valid_jwt() {
     .expect("returned token must be decodable with the server secret");
 
     assert_eq!(decoded.claims.scope, "read");
-    assert_eq!(decoded.claims.sub,   "models/testns/myrepo");
+    assert_eq!(decoded.claims.sub, "models/testns/myrepo");
     assert_eq!(decoded.claims.revision, "main");
 }
 
 #[tokio::test]
 async fn test_issue_write_token_claims_scope() {
-    let state  = infra_free_state().await;
+    let state = infra_free_state().await;
     let router = build_router(state);
 
     let req = Request::builder()
@@ -170,10 +176,10 @@ async fn test_issue_write_token_claims_scope() {
         .body(axum::body::Body::empty())
         .unwrap();
 
-    let resp   = router.oneshot(req).await.unwrap();
+    let resp = router.oneshot(req).await.unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
-    let body   = json_body(resp.into_body()).await;
-    let token  = body["accessToken"].as_str().unwrap();
+    let body = json_body(resp.into_body()).await;
+    let token = body["accessToken"].as_str().unwrap();
 
     let decoded = jsonwebtoken::decode::<Claims>(
         token,
@@ -182,14 +188,14 @@ async fn test_issue_write_token_claims_scope() {
     )
     .unwrap();
 
-    assert_eq!(decoded.claims.scope,    "write");
-    assert_eq!(decoded.claims.sub,      "datasets/nspc/ds");
+    assert_eq!(decoded.claims.scope, "write");
+    assert_eq!(decoded.claims.sub, "datasets/nspc/ds");
     assert_eq!(decoded.claims.revision, "v2");
 }
 
 #[tokio::test]
 async fn test_write_token_via_post() {
-    let state  = infra_free_state().await;
+    let state = infra_free_state().await;
     let router = build_router(state);
 
     let req = Request::builder()
@@ -204,7 +210,7 @@ async fn test_write_token_via_post() {
 
 #[tokio::test]
 async fn test_protected_route_without_auth_is_401() {
-    let state  = infra_free_state().await;
+    let state = infra_free_state().await;
     let router = build_router(state);
 
     let req = Request::builder()
@@ -219,8 +225,8 @@ async fn test_protected_route_without_auth_is_401() {
 
 #[tokio::test]
 async fn test_protected_route_wrong_secret_is_401() {
-    let state     = infra_free_state().await;
-    let router    = build_router(state);
+    let state = infra_free_state().await;
+    let router = build_router(state);
     let bad_token = make_jwt("completely-wrong-secret", "read");
 
     let req = Request::builder()
@@ -236,8 +242,8 @@ async fn test_protected_route_wrong_secret_is_401() {
 
 #[tokio::test]
 async fn test_protected_route_expired_token_is_401() {
-    let state   = infra_free_state().await;
-    let router  = build_router(state);
+    let state = infra_free_state().await;
+    let router = build_router(state);
     let expired = make_expired_jwt(TEST_SECRET);
 
     let req = Request::builder()
@@ -253,9 +259,9 @@ async fn test_protected_route_expired_token_is_401() {
 
 #[tokio::test]
 async fn test_dedup_wrong_prefix_is_400() {
-    let state  = infra_free_state().await;
+    let state = infra_free_state().await;
     let router = build_router(state);
-    let token  = make_jwt(TEST_SECRET, "read");
+    let token = make_jwt(TEST_SECRET, "read");
 
     let req = Request::builder()
         .method("GET")
@@ -270,9 +276,9 @@ async fn test_dedup_wrong_prefix_is_400() {
 
 #[tokio::test]
 async fn test_upload_xorb_wrong_prefix_is_400() {
-    let state  = infra_free_state().await;
+    let state = infra_free_state().await;
     let router = build_router(state);
-    let token  = make_jwt(TEST_SECRET, "write");
+    let token = make_jwt(TEST_SECRET, "write");
 
     let req = Request::builder()
         .method("POST")
@@ -287,9 +293,9 @@ async fn test_upload_xorb_wrong_prefix_is_400() {
 
 #[tokio::test]
 async fn test_upload_xorb_invalid_hash_is_400() {
-    let state  = infra_free_state().await;
+    let state = infra_free_state().await;
     let router = build_router(state);
-    let token  = make_jwt(TEST_SECRET, "write");
+    let token = make_jwt(TEST_SECRET, "write");
 
     let req = Request::builder()
         .method("POST")
@@ -304,9 +310,9 @@ async fn test_upload_xorb_invalid_hash_is_400() {
 
 #[tokio::test]
 async fn test_reconstruction_invalid_file_id_is_400() {
-    let state  = infra_free_state().await;
+    let state = infra_free_state().await;
     let router = build_router(state);
-    let token  = make_jwt(TEST_SECRET, "read");
+    let token = make_jwt(TEST_SECRET, "read");
 
     let req = Request::builder()
         .method("GET")
@@ -323,7 +329,7 @@ async fn test_reconstruction_invalid_file_id_is_400() {
 async fn test_health_returns_json_with_status_key() {
     // The health endpoint will get a DB error (lazy pool, unreachable host)
     // but must still return HTTP 200 with a JSON body containing "status".
-    let state  = infra_free_state().await;
+    let state = infra_free_state().await;
     let router = build_router(state);
 
     let req = Request::builder()
@@ -335,26 +341,37 @@ async fn test_health_returns_json_with_status_key() {
     let resp = router.oneshot(req).await.unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
     let body = json_body(resp.into_body()).await;
-    assert!(body["status"].is_string(), "health body missing 'status': {body}");
-    assert!(body["db"].is_string(),     "health body missing 'db': {body}");
+    assert!(
+        body["status"].is_string(),
+        "health body missing 'status': {body}"
+    );
+    assert!(body["db"].is_string(), "health body missing 'db': {body}");
 }
 
 // ── Shard binary builder (mirrors build_test_shard in shard-parser tests) ────
 
 fn build_upload_shard(
-    file_hash:  [u8; 32],
-    sha256:     [u8; 32],
-    xorb_hash:  [u8; 32],
+    file_hash: [u8; 32],
+    sha256: [u8; 32],
+    xorb_hash: [u8; 32],
     chunk_hash: [u8; 32],
 ) -> Vec<u8> {
     use shard_parser::types::{
+        BOOKEND_HASH, MDB_FILE_FLAG_WITH_METADATA_EXT, MDB_FILE_FLAG_WITH_VERIFICATION,
         MDB_SHARD_HEADER_TAG, MDB_SHARD_HEADER_VERSION,
-        MDB_FILE_FLAG_WITH_METADATA_EXT, MDB_FILE_FLAG_WITH_VERIFICATION, BOOKEND_HASH,
     };
 
     let mut buf = Vec::new();
-    macro_rules! w32 { ($v:expr) => { buf.extend_from_slice(&($v as u32).to_le_bytes()) } }
-    macro_rules! w64 { ($v:expr) => { buf.extend_from_slice(&($v as u64).to_le_bytes()) } }
+    macro_rules! w32 {
+        ($v:expr) => {
+            buf.extend_from_slice(&($v as u32).to_le_bytes())
+        };
+    }
+    macro_rules! w64 {
+        ($v:expr) => {
+            buf.extend_from_slice(&($v as u64).to_le_bytes())
+        };
+    }
 
     // Header (48 bytes)
     buf.extend_from_slice(&MDB_SHARD_HEADER_TAG);
@@ -364,15 +381,15 @@ fn build_upload_shard(
     // FileDataSequenceHeader
     buf.extend_from_slice(&file_hash);
     w32!(MDB_FILE_FLAG_WITH_VERIFICATION | MDB_FILE_FLAG_WITH_METADATA_EXT);
-    w32!(1u32);           // num_entries = 1
+    w32!(1u32); // num_entries = 1
     buf.extend_from_slice(&[0u8; 8]); // _unused
 
     // FileDataSequenceEntry
     buf.extend_from_slice(&xorb_hash);
-    w32!(0u32);           // cas_flags
-    w32!(65536u32);       // unpacked_segment_bytes
-    w32!(0u32);           // chunk_index_start
-    w32!(1u32);           // chunk_index_end
+    w32!(0u32); // cas_flags
+    w32!(65536u32); // unpacked_segment_bytes
+    w32!(0u32); // chunk_index_start
+    w32!(1u32); // chunk_index_end
 
     // FileVerificationEntry (1 entry matching num_entries)
     buf.extend_from_slice(&[0xAAu8; 32]); // range_hash
@@ -388,15 +405,15 @@ fn build_upload_shard(
 
     // CASChunkSequenceHeader
     buf.extend_from_slice(&xorb_hash);
-    w32!(0u32);           // cas_flags
-    w32!(1u32);           // num_entries
-    w32!(65536u32);       // num_bytes_in_cas
-    w32!(66000u32);       // num_bytes_on_disk
+    w32!(0u32); // cas_flags
+    w32!(1u32); // num_entries
+    w32!(65536u32); // num_bytes_in_cas
+    w32!(66000u32); // num_bytes_on_disk
 
     // CASChunkSequenceEntry
     buf.extend_from_slice(&chunk_hash);
-    w32!(0u32);           // chunk_byte_range_start
-    w32!(65536u32);       // unpacked_segment_bytes
+    w32!(0u32); // chunk_byte_range_start
+    w32!(65536u32); // unpacked_segment_bytes
     buf.extend_from_slice(&[0u8; 8]); // _unused
 
     // CAS Info bookend
@@ -414,8 +431,7 @@ fn integration_db_url() -> Option<String> {
 }
 
 fn integration_s3_endpoint() -> String {
-    std::env::var("INTEGRATION_S3_ENDPOINT")
-        .unwrap_or_else(|_| "http://127.0.0.1:9000".into())
+    std::env::var("INTEGRATION_S3_ENDPOINT").unwrap_or_else(|_| "http://127.0.0.1:9000".into())
 }
 
 async fn integration_state(db_url: &str) -> AppState {
@@ -434,14 +450,17 @@ async fn integration_state(db_url: &str) -> AppState {
     .expect("integration S3 client failed — is MinIO running?");
 
     let config = AppConfig {
-        bind_addr:       "127.0.0.1:0".into(),
-        database_url:    db_url.into(),
-        s3_endpoint:     Some(integration_s3_endpoint()),
-        s3_bucket:       "xet-storage".into(),
-        s3_region:       "us-east-1".into(),
-        jwt_secret:      TEST_SECRET.into(),
+        bind_addr: "127.0.0.1:0".into(),
+        database_url: db_url.into(),
+        s3_endpoint: Some(integration_s3_endpoint()),
+        s3_bucket: "xet-storage".into(),
+        s3_region: "us-east-1".into(),
+        jwt_secret: TEST_SECRET.into(),
         jwt_expiry_secs: 3600,
-        cas_base_url:    "http://localhost:3000".into(),
+        cas_base_url: "http://localhost:3000".into(),
+        hub_base_url: "http://localhost:8080".into(),
+        hub_token_secret: "test_hub_secret".into(),
+        s3_public_endpoint: Some("http://localhost:9000".into()),
     };
 
     AppState::new(pool, s3, config)
@@ -452,10 +471,13 @@ async fn integration_state(db_url: &str) -> AppState {
 async fn test_health_with_live_db() {
     let db_url = match integration_db_url() {
         Some(u) => u,
-        None    => { eprintln!("Skipped: INTEGRATION_DATABASE_URL not set"); return; }
+        None => {
+            eprintln!("Skipped: INTEGRATION_DATABASE_URL not set");
+            return;
+        }
     };
 
-    let state  = integration_state(&db_url).await;
+    let state = integration_state(&db_url).await;
     let router = build_router(state);
 
     let req = Request::builder()
@@ -467,8 +489,8 @@ async fn test_health_with_live_db() {
     let resp = router.oneshot(req).await.unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
     let body = json_body(resp.into_body()).await;
-    assert_eq!(body["status"], "ok",        "db not connected: {body}");
-    assert_eq!(body["db"],     "connected", "db not connected: {body}");
+    assert_eq!(body["status"], "ok", "db not connected: {body}");
+    assert_eq!(body["db"], "connected", "db not connected: {body}");
 }
 
 #[tokio::test]
@@ -476,22 +498,25 @@ async fn test_health_with_live_db() {
 async fn test_full_upload_dedup_reconstruct_flow() {
     let db_url = match integration_db_url() {
         Some(u) => u,
-        None    => { eprintln!("Skipped: INTEGRATION_DATABASE_URL not set"); return; }
+        None => {
+            eprintln!("Skipped: INTEGRATION_DATABASE_URL not set");
+            return;
+        }
     };
 
-    let state  = integration_state(&db_url).await;
-    let token  = make_jwt(TEST_SECRET, "write");
+    let state = integration_state(&db_url).await;
+    let token = make_jwt(TEST_SECRET, "write");
     let bearer = format!("Bearer {token}");
 
     // Use unique-ish hashes to avoid cross-test collisions
-    let xorb_raw:  [u8; 32] = [0xA3u8; 32];
+    let xorb_raw: [u8; 32] = [0xA3u8; 32];
     let chunk_raw: [u8; 32] = [0xA4u8; 32];
-    let file_raw:  [u8; 32] = [0xA1u8; 32];
-    let sha256:    [u8; 32] = [0xA2u8; 32];
+    let file_raw: [u8; 32] = [0xA1u8; 32];
+    let sha256: [u8; 32] = [0xA2u8; 32];
 
-    let xorb_api  = common::hash_to_api_string(&xorb_raw);
+    let xorb_api = common::hash_to_api_string(&xorb_raw);
     let chunk_api = common::hash_to_api_string(&chunk_raw);
-    let file_api  = common::hash_to_api_string(&file_raw);
+    let file_api = common::hash_to_api_string(&file_raw);
 
     // ── Step 1: Upload the xorb ───────────────────────────────────────────────
     {
@@ -531,7 +556,7 @@ async fn test_full_upload_dedup_reconstruct_flow() {
             .await
             .unwrap();
 
-        let status     = resp.status();
+        let status = resp.status();
         let body_bytes = resp.into_body().collect().await.unwrap().to_bytes();
         assert_eq!(
             status,
@@ -562,8 +587,15 @@ async fn test_full_upload_dedup_reconstruct_flow() {
             .expect("dedup response must be a parseable MDB shard");
 
         // The dedup shard must describe the xorb containing our chunk
-        assert_eq!(parsed.xorbs.len(), 1, "expected exactly 1 xorb in dedup shard");
-        assert_eq!(parsed.xorbs[0].xorb_hash, xorb_raw, "wrong xorb in dedup shard");
+        assert_eq!(
+            parsed.xorbs.len(),
+            1,
+            "expected exactly 1 xorb in dedup shard"
+        );
+        assert_eq!(
+            parsed.xorbs[0].xorb_hash, xorb_raw,
+            "wrong xorb in dedup shard"
+        );
         assert_eq!(parsed.xorbs[0].chunks.len(), 1);
         assert_eq!(parsed.xorbs[0].chunks[0].chunk_hash, chunk_raw);
     }
@@ -612,6 +644,10 @@ async fn test_full_upload_dedup_reconstruct_flow() {
             .await
             .unwrap();
 
-        assert_eq!(resp.status(), StatusCode::NOT_FOUND, "unknown chunk must return 404");
+        assert_eq!(
+            resp.status(),
+            StatusCode::NOT_FOUND,
+            "unknown chunk must return 404"
+        );
     }
 }

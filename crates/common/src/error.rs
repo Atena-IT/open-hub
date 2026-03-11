@@ -35,14 +35,17 @@ pub enum AppError {
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, msg) = match &self {
-            AppError::Config(m)        => (StatusCode::INTERNAL_SERVER_ERROR, m.clone()),
-            AppError::NotFound(m)      => (StatusCode::NOT_FOUND, m.clone()),
-            AppError::BadRequest(m)    => (StatusCode::BAD_REQUEST, m.clone()),
-            AppError::Unauthorized(m)  => (StatusCode::UNAUTHORIZED, m.clone()),
-            AppError::Forbidden(m)     => (StatusCode::FORBIDDEN, m.clone()),
-            AppError::Conflict(m)      => (StatusCode::CONFLICT, m.clone()),
-            AppError::RangeNotSatisfiable => (StatusCode::RANGE_NOT_SATISFIABLE, "Range not satisfiable".into()),
-            AppError::Internal(m)      => (StatusCode::INTERNAL_SERVER_ERROR, m.clone()),
+            AppError::Config(m) => (StatusCode::INTERNAL_SERVER_ERROR, m.clone()),
+            AppError::NotFound(m) => (StatusCode::NOT_FOUND, m.clone()),
+            AppError::BadRequest(m) => (StatusCode::BAD_REQUEST, m.clone()),
+            AppError::Unauthorized(m) => (StatusCode::UNAUTHORIZED, m.clone()),
+            AppError::Forbidden(m) => (StatusCode::FORBIDDEN, m.clone()),
+            AppError::Conflict(m) => (StatusCode::CONFLICT, m.clone()),
+            AppError::RangeNotSatisfiable => (
+                StatusCode::RANGE_NOT_SATISFIABLE,
+                "Range not satisfiable".into(),
+            ),
+            AppError::Internal(m) => (StatusCode::INTERNAL_SERVER_ERROR, m.clone()),
         };
         tracing::error!(error = %self, "Request error");
         (status, Json(json!({ "error": msg }))).into_response()

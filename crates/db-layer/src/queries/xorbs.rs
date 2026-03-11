@@ -25,31 +25,24 @@ pub async fn upsert_xorb(
 
 /// Check if a xorb exists.
 pub async fn xorb_exists(pool: &PgPool, hash: &[u8; 32]) -> anyhow::Result<bool> {
-    let count: i64 = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(1) FROM xorbs WHERE hash = $1",
-    )
-    .bind(hash.as_slice())
-    .fetch_one(pool)
-    .await?;
+    let count: i64 = sqlx::query_scalar::<_, i64>("SELECT COUNT(1) FROM xorbs WHERE hash = $1")
+        .bind(hash.as_slice())
+        .fetch_one(pool)
+        .await?;
     Ok(count > 0)
 }
 
 /// Get xorb s3_key by hash.
 pub async fn get_xorb_s3_key(pool: &PgPool, hash: &[u8; 32]) -> anyhow::Result<Option<String>> {
-    let row = sqlx::query_scalar::<_, String>(
-        "SELECT s3_key FROM xorbs WHERE hash = $1",
-    )
-    .bind(hash.as_slice())
-    .fetch_optional(pool)
-    .await?;
+    let row = sqlx::query_scalar::<_, String>("SELECT s3_key FROM xorbs WHERE hash = $1")
+        .bind(hash.as_slice())
+        .fetch_optional(pool)
+        .await?;
     Ok(row)
 }
 
 /// Batch-insert chunk records (on conflict ignore).
-pub async fn upsert_chunks(
-    pool: &PgPool,
-    chunks: &[ChunkRecord],
-) -> anyhow::Result<()> {
+pub async fn upsert_chunks(pool: &PgPool, chunks: &[ChunkRecord]) -> anyhow::Result<()> {
     for c in chunks {
         sqlx::query(
             r#"
@@ -84,7 +77,10 @@ pub async fn find_chunk(pool: &PgPool, hash: &[u8; 32]) -> anyhow::Result<Option
 }
 
 /// Get all chunks belonging to a specific xorb.
-pub async fn chunks_for_xorb(pool: &PgPool, xorb_hash: &[u8; 32]) -> anyhow::Result<Vec<ChunkRecord>> {
+pub async fn chunks_for_xorb(
+    pool: &PgPool,
+    xorb_hash: &[u8; 32],
+) -> anyhow::Result<Vec<ChunkRecord>> {
     let rows = sqlx::query_as::<_, ChunkRecord>(
         r#"
         SELECT hash, xorb_hash, chunk_index_in_xorb, byte_range_start, unpacked_segment_bytes
@@ -100,9 +96,9 @@ pub async fn chunks_for_xorb(pool: &PgPool, xorb_hash: &[u8; 32]) -> anyhow::Res
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct ChunkRecord {
-    pub hash:                   Vec<u8>,
-    pub xorb_hash:              Vec<u8>,
-    pub chunk_index_in_xorb:    i32,
-    pub byte_range_start:       i32,
+    pub hash: Vec<u8>,
+    pub xorb_hash: Vec<u8>,
+    pub chunk_index_in_xorb: i32,
+    pub byte_range_start: i32,
     pub unpacked_segment_bytes: i32,
 }

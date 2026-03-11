@@ -1,7 +1,7 @@
 use common::AppConfig;
 use s3_storage::S3Client;
-use tracing::info;
 use std::net::SocketAddr;
+use tracing::info;
 
 use cas_server::state::AppState;
 
@@ -17,13 +17,13 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     // ── Config ────────────────────────────────────────────────────────────────
-    let config = AppConfig::from_env()
-        .map_err(|e| anyhow::anyhow!("Config error: {e}"))?;
+    let config = AppConfig::from_env().map_err(|e| anyhow::anyhow!("Config error: {e}"))?;
 
     info!(bind_addr = %config.bind_addr, cas_base_url = %config.cas_base_url, "Starting cas-server");
 
     // ── Database ──────────────────────────────────────────────────────────────
-    let pool = db_layer::create_pool(&config.database_url).await
+    let pool = db_layer::create_pool(&config.database_url)
+        .await
         .map_err(|e| anyhow::anyhow!("DB connection failed: {e}"))?;
     info!("Database connected and migrations applied");
 

@@ -38,7 +38,10 @@ pub async fn create_repo(
     Ok(row)
 }
 
-pub async fn find_repo_by_full_name(pool: &PgPool, full_name: &str) -> anyhow::Result<Option<RepoRow>> {
+pub async fn find_repo_by_full_name(
+    pool: &PgPool,
+    full_name: &str,
+) -> anyhow::Result<Option<RepoRow>> {
     let row = sqlx::query_as::<_, RepoRow>(
         "SELECT id, owner_id, name, full_name, repo_type, private, head_sha, description, created_at, updated_at FROM repositories WHERE full_name = $1",
     )
@@ -83,4 +86,14 @@ pub async fn delete_repo(pool: &PgPool, repo_id: Uuid) -> anyhow::Result<bool> {
         .execute(pool)
         .await?;
     Ok(result.rows_affected() > 0)
+}
+
+pub async fn list_repos_by_type(pool: &PgPool, repo_type: &str) -> anyhow::Result<Vec<RepoRow>> {
+    let rows = sqlx::query_as::<_, RepoRow>(
+        "SELECT id, owner_id, name, full_name, repo_type, private, head_sha, description, created_at, updated_at FROM repositories WHERE repo_type = $1 ORDER BY updated_at DESC",
+    )
+    .bind(repo_type)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows)
 }

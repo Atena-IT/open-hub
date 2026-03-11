@@ -19,17 +19,24 @@ pub enum ShardParseError {
 
 struct Cursor<'a> {
     data: &'a [u8],
-    pos:  usize,
+    pos: usize,
 }
 
 impl<'a> Cursor<'a> {
-    fn new(data: &'a [u8]) -> Self { Self { data, pos: 0 } }
+    fn new(data: &'a [u8]) -> Self {
+        Self { data, pos: 0 }
+    }
 
-    fn remaining(&self) -> usize { self.data.len() - self.pos }
+    fn remaining(&self) -> usize {
+        self.data.len() - self.pos
+    }
 
     fn read_bytes(&mut self, n: usize) -> Result<&'a [u8], ShardParseError> {
         if self.remaining() < n {
-            return Err(ShardParseError::TooShort { need: n, have: self.remaining() });
+            return Err(ShardParseError::TooShort {
+                need: n,
+                have: self.remaining(),
+            });
         }
         let slice = &self.data[self.pos..self.pos + n];
         self.pos += n;
@@ -58,7 +65,9 @@ impl<'a> Cursor<'a> {
 
     fn is_bookend(&mut self) -> Result<bool, ShardParseError> {
         if self.remaining() < 48 {
-            return Err(ShardParseError::Corrupt("expected bookend, not enough bytes".into()));
+            return Err(ShardParseError::Corrupt(
+                "expected bookend, not enough bytes".into(),
+            ));
         }
         let hash: [u8; 32] = self.data[self.pos..self.pos + 32].try_into().unwrap();
         Ok(hash == BOOKEND_HASH)
@@ -93,19 +102,19 @@ pub fn parse_shard(data: &[u8]) -> Result<ParsedShard, ShardParseError> {
         }
 
         // FileDataSequenceHeader (48 bytes)
-        let file_hash   = cur.read_hash()?;
-        let file_flags  = cur.read_u32_le()?;
+        let file_hash = cur.read_hash()?;
+        let file_flags = cur.read_u32_le()?;
         let num_entries = cur.read_u32_le()?;
         cur.skip(8)?; // _unused
 
         // FileDataSequenceEntry × num_entries (each 48 bytes)
         let mut terms = Vec::with_capacity(num_entries as usize);
         for _ in 0..num_entries {
-            let xorb_hash         = cur.read_hash()?;
-            let _cas_flags        = cur.read_u32_le()?;
-            let unpacked_length   = cur.read_u32_le()?;
+            let xorb_hash = cur.read_hash()?;
+            let _cas_flags = cur.read_u32_le()?;
+            let unpacked_length = cur.read_u32_le()?;
             let chunk_index_start = cur.read_u32_le()?;
-            let chunk_index_end   = cur.read_u32_le()?;
+            let chunk_index_end = cur.read_u32_le()?;
             terms.push(FileReconstructionTerm {
                 xorb_hash,
                 chunk_index_start,
@@ -128,7 +137,11 @@ pub fn parse_shard(data: &[u8]) -> Result<ParsedShard, ShardParseError> {
             cur.skip(16)?; // _unused
         }
 
-        shard.files.push(ParsedFile { file_hash, sha256, terms });
+        shard.files.push(ParsedFile {
+            file_hash,
+            sha256,
+            terms,
+        });
     }
 
     // ── CAS Info Section ─────────────────────────────────────────────────────
@@ -139,23 +152,32 @@ pub fn parse_shard(data: &[u8]) -> Result<ParsedShard, ShardParseError> {
         }
 
         // CASChunkSequenceHeader (48 bytes)
-        let xorb_hash        = cur.read_hash()?;
-        let _cas_flags       = cur.read_u32_le()?;
-        let num_entries      = cur.read_u32_le()?;
+        let xorb_hash = cur.read_hash()?;
+        let _cas_flags = cur.read_u32_le()?;
+        let num_entries = cur.read_u32_le()?;
         let num_bytes_in_cas = cur.read_u32_le()?;
         let num_bytes_on_disk = cur.read_u32_le()?;
 
         // CASChunkSequenceEntry × num_entries (each 48 bytes)
         let mut chunks = Vec::with_capacity(num_entries as usize);
         for _ in 0..num_entries {
-            let chunk_hash             = cur.read_hash()?;
+            let chunk_hash = cur.read_hash()?;
             let chunk_byte_range_start = cur.read_u32_le()?;
             let unpacked_segment_bytes = cur.read_u32_le()?;
             cur.skip(8)?; // _unused
-            chunks.push(ChunkInXorb { chunk_hash, chunk_byte_range_start, unpacked_segment_bytes });
+            chunks.push(ChunkInXorb {
+                chunk_hash,
+                chunk_byte_range_start,
+                unpacked_segment_bytes,
+            });
         }
 
-        shard.xorbs.push(ParsedXorb { xorb_hash, num_bytes_in_cas, num_bytes_on_disk, chunks });
+        shard.xorbs.push(ParsedXorb {
+            xorb_hash,
+            num_bytes_in_cas,
+            num_bytes_on_disk,
+            chunks,
+        });
     }
 
     // Footer (if present) — ignore for our purposes.

@@ -6,10 +6,10 @@ use sqlx::PgPool;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReconstructionTerm {
     /// Xorb hash as 64-char hex (API encoding).
-    pub xorb_hash:         String,
+    pub xorb_hash: String,
     pub chunk_index_start: i32,
-    pub chunk_index_end:   i32,
-    pub unpacked_length:   i64,
+    pub chunk_index_end: i32,
+    pub unpacked_length: i64,
 }
 
 pub async fn upsert_file_mapping(
@@ -49,8 +49,8 @@ pub async fn get_file_mapping(
 
 #[derive(Debug, sqlx::FromRow)]
 pub struct FileMappingRow {
-    pub file_hash:            Vec<u8>,
-    pub sha256:               Vec<u8>,
+    pub file_hash: Vec<u8>,
+    pub sha256: Vec<u8>,
     pub reconstruction_terms: Option<Value>,
 }
 
@@ -58,7 +58,7 @@ impl FileMappingRow {
     pub fn parse_terms(&self) -> anyhow::Result<Vec<ReconstructionTerm>> {
         match &self.reconstruction_terms {
             Some(v) => Ok(serde_json::from_value(v.clone())?),
-            None    => Ok(vec![]),
+            None => Ok(vec![]),
         }
     }
 }

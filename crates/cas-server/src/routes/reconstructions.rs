@@ -12,10 +12,10 @@ use serde_json::{json, Value};
 use std::{collections::HashMap, time::Duration};
 use tracing::instrument;
 
+use crate::state::AppState;
 use common::{api_string_to_hash, AppError};
 use db_layer::queries::file_mappings::get_file_mapping;
 use s3_storage::xorb_key;
-use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
 pub struct ReconPath {
@@ -43,7 +43,8 @@ pub async fn get_reconstruction(
         .map_err(|e| AppError::Internal(e.to_string()))?
         .ok_or_else(|| AppError::NotFound(format!("file {} not found", p.file_id)))?;
 
-    let terms = mapping.parse_terms()
+    let terms = mapping
+        .parse_terms()
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
     // Parse optional Range header: "bytes=start-end"
@@ -65,38 +66,48 @@ pub async fn get_reconstruction(
         let plain_hex = hex::encode(raw);
         let s3_key = xorb_key(&plain_hex);
 
-        let url = state.s3.presign_get(&s3_key, presign_expiry).await
+        let url = state
+            .s3
+            .presign_get(&s3_key, presign_expiry)
+            .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
 
         // For simplicity, one fetch_info entry covers the full xorb
         // (clients will use the appropriate chunk range)
         let start_chunk = term.chunk_index_start;
-        let end_chunk   = term.chunk_index_end;
+        let end_chunk = term.chunk_index_end;
 
         // We need the xorb byte size to provide url_range.
         // Use 0-MAX as a conservative fallback; clients specify their own Range anyway.
-        let xorb_size: i64 = sqlx::query_scalar::<_, i64>(
-                "SELECT size_bytes FROM xorbs WHERE hash = $1"
-            )
-            .bind(raw.as_slice())
-            .fetch_optional(state.pool.as_ref())
-            .await
-            .map_err(|e| AppError::Internal(e.to_string()))?
-            .unwrap_or(0);
+        let _xorb_size: i64 =
+            sqlx::query_scalar::<_, i64>("SELECT size_bytes FROM xorbs WHERE hash = $1")
+                .bind(raw.as_slice())
+                .fetch_optional(state.pool.as_ref())
+                .await
+                .map_err(|e| AppError::Internal(e.to_string()))?
+                .unwrap_or(0);
 
-        fetch_info.entry(term.xorb_hash.clone()).or_default().push(json!({
-            "range":     { "start": start_chunk, "end": end_chunk },
-            "url":       url
-            
-        }));
+        fetch_info
+            .entry(term.xorb_hash.clone())
+            .or_default()
+            .push(json!({
+                "range":     { "start": start_chunk, "end": end_chunk },
+                "url":       url
+
+            }));
     }
 
     // Build terms array
-    let terms_json: Vec<Value> = terms.iter().map(|t| json!({
-        "hash":            t.xorb_hash,
-        "range":           { "start": t.chunk_index_start, "end": t.chunk_index_end },
-        "unpacked_length": t.unpacked_length,
-    })).collect();
+    let terms_json: Vec<Value> = terms
+        .iter()
+        .map(|t| {
+            json!({
+                "hash":            t.xorb_hash,
+                "range":           { "start": t.chunk_index_start, "end": t.chunk_index_end },
+                "unpacked_length": t.unpacked_length,
+            })
+        })
+        .collect();
 
     let offset = if range_start > 0 {
         // TODO: compute exact offset_into_first_range from chunk boundaries
@@ -124,7 +135,10 @@ fn parse_range_header(headers: &axum::http::HeaderMap) -> (u64, Option<u64>) {
         .unwrap_or("");
     let stripped = value.strip_prefix("bytes=").unwrap_or("");
     let mut parts = stripped.splitn(2, '-');
-    let start = parts.next().and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
-    let end   = parts.next().and_then(|s| s.parse::<u64>().ok());
+    let start = parts
+        .next()
+        .and_then(|s| s.parse::<u64>().ok())
+        .unwrap_or(0);
+    let end = parts.next().and_then(|s| s.parse::<u64>().ok());
     (start, end)
 }

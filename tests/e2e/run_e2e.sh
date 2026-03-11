@@ -6,11 +6,11 @@
 #   ./tests/e2e/run_e2e.sh [--no-build] [--keep-up]
 #
 # Flags:
-#   --no-build   Skip `docker compose build` (use cached image)
+#   --no-build   Skip `docker compose -f deployment/docker-compose.yml build` (use cached image)
 #   --keep-up    Leave the docker-compose stack running after the test
 #
 # Requirements:
-#   - docker + docker compose v2
+#   - docker + docker compose -f deployment/docker-compose.yml v2
 #   - python3, curl, jq
 #   - sha256sum (Linux) or shasum (macOS)
 #
@@ -62,27 +62,27 @@ sha256_of() { # sha256_of <file>
 on_exit() {
   if [[ "$KEEP_UP" == "false" ]]; then
     info "Tearing down docker-compose stack"
-    docker compose down -v --remove-orphans 2>/dev/null || true
+    docker compose -f deployment/docker-compose.yml down -v --remove-orphans 2>/dev/null || true
   else
-    info "Stack left running (--keep-up). Stop with: docker compose down -v"
+    info "Stack left running (--keep-up). Stop with: docker compose -f deployment/docker-compose.yml down -v"
   fi
 }
 trap on_exit EXIT
 
-CAS_URL="http://localhost:3000"
+CAS_URL="http://localhost:8080"
 
 # =============================================================================
 # Step 1 — Start the stack
 # =============================================================================
 info "Step 1: Starting docker-compose stack"
 if [[ "$DO_BUILD" == "true" ]]; then
-  docker compose build cas-server
+  docker compose -f deployment/docker-compose.yml build xet-server
 fi
-docker compose up -d postgres minio minio-init
+docker compose -f deployment/docker-compose.yml up -d postgres minio minio-init
 
 info "  Waiting for Postgres…"
 timeout 60 bash -c \
-  'until docker compose exec -T postgres pg_isready -U xet -d xetdb &>/dev/null; do sleep 2; done'
+  'until docker compose -f deployment/docker-compose.yml exec -T postgres pg_isready -U xet -d xetdb &>/dev/null; do sleep 2; done'
 ok "Postgres ready"
 
 info "  Waiting for MinIO…"
@@ -90,7 +90,7 @@ timeout 60 bash -c \
   'until curl -sf http://localhost:9000/minio/health/live &>/dev/null; do sleep 2; done'
 ok "MinIO ready"
 
-docker compose up -d cas-server
+docker compose -f deployment/docker-compose.yml up -d xet-server
 
 info "  Waiting for CAS server /health…"
 timeout 60 bash -c \
@@ -101,7 +101,21 @@ ok "CAS server healthy"
 # Step 2 — Obtain a write token
 # =============================================================================
 info "Step 2: Fetching write token"
-TOKEN_JSON=$(curl -sf "$CAS_URL/api/models/e2e-ns/e2e-repo/xet-write-token/main")
+
+info "Registering a user to get Hub API token"
+USERNAME="e2e_user_$RANDOM"
+HUB_TOKEN_JSON=$(curl -sf -X POST -H "Content-Type: application/json" -d "{\"username\": \"$USERNAME\", \"password\": \"password\"}" "$CAS_URL/api/auth/register")
+HUB_TOKEN=$(echo "$HUB_TOKEN_JSON" | jq -r '.token')
+[[ -n "$HUB_TOKEN" && "$HUB_TOKEN" != "null" ]] \
+  || fail "Could not register user: $HUB_TOKEN_JSON"
+
+info "Creating repository"
+curl -sf -X POST -H "Authorization: Bearer $HUB_TOKEN" -H "Content-Type: application/json" \
+  -d "{\"name\": \"e2e-repo\", \"type\": \"model\", \"private\": false}" \
+  "$CAS_URL/api/repos/create" || fail "Could not create repository"
+
+info "Fetching CAS write token with Hub API token"
+TOKEN_JSON=$(curl -sf -H "Authorization: Bearer $HUB_TOKEN" "$CAS_URL/api/models/$USERNAME/e2e-repo/xet-write-token/main")
 ACCESS_TOKEN=$(echo "$TOKEN_JSON" | jq -r '.accessToken')
 [[ -n "$ACCESS_TOKEN" && "$ACCESS_TOKEN" != "null" ]] \
   || fail "Could not obtain write token: $TOKEN_JSON"
@@ -191,8 +205,8 @@ sha256    = bytes.fromhex("$SHA256_HEX")
 sz        = $FILE_SIZE
 
 TAG = (
-    b'HFRepoMetaData0'
-    + bytes([85,105,103,69,106,123,129,87,131,165,189,217,92,205,209,74,169])
+    b'HFRepoMetaData'
+    + bytes([0, 85,105,103,69,106,123,129,87,131,165,189,217,92,205,209,74,169])
 )
 assert len(TAG) == 32
 BOOKEND            = bytes([0xFF]*32) + bytes(16)
@@ -309,7 +323,7 @@ ok "SHA-256 verified: downloaded content matches original"
 # =============================================================================
 info "Step 10: Verifying xorb in MinIO"
 XORB_S3_KEY="xorbs/${XORB_HEX:0:2}/${XORB_HEX:2:2}/$XORB_HEX"
-MC_STATUS=$(docker compose exec -T minio /bin/sh -c \
+MC_STATUS=$(docker compose -f deployment/docker-compose.yml exec -T minio /bin/sh -c \
   "mc alias set local http://localhost:9000 minioadmin minioadmin >/dev/null 2>&1 \
    && mc stat --json local/xet-storage/$XORB_S3_KEY 2>&1" || true)
 echo "$MC_STATUS" | head -5

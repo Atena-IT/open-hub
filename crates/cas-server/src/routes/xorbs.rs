@@ -12,15 +12,15 @@ use http_body_util::BodyExt;
 use serde_json::json;
 use tracing::instrument;
 
+use crate::state::AppState;
 use common::{api_string_to_hash, AppError};
 use db_layer::queries::xorbs::upsert_xorb;
 use s3_storage::xorb_key;
-use crate::state::AppState;
 
 #[derive(Debug, serde::Deserialize)]
 pub struct XorbPath {
     prefix: String,
-    hash:   String,
+    hash: String,
 }
 
 #[instrument(skip(state, body), fields(xorb_hash = %p.hash))]
@@ -31,7 +31,10 @@ pub async fn upload_xorb(
 ) -> Result<impl IntoResponse, AppError> {
     // Validate prefix
     if p.prefix != "default" && p.prefix != "default-merkledb" {
-        return Err(AppError::BadRequest(format!("unknown prefix '{}'", p.prefix)));
+        return Err(AppError::BadRequest(format!(
+            "unknown prefix '{}'",
+            p.prefix
+        )));
     }
 
     // Decode hash from API encoding
@@ -52,7 +55,10 @@ pub async fn upload_xorb(
     let s3_key = xorb_key(&plain_hex);
 
     // Upload to S3
-    state.s3.put_object(&s3_key, data).await
+    state
+        .s3
+        .put_object(&s3_key, data)
+        .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
     // Record in DB (idempotent upsert)
@@ -62,5 +68,8 @@ pub async fn upload_xorb(
 
     tracing::info!(was_inserted, s3_key, size_bytes, "xorb uploaded");
 
-    Ok((StatusCode::OK, Json(json!({ "was_inserted": was_inserted }))))
+    Ok((
+        StatusCode::OK,
+        Json(json!({ "was_inserted": was_inserted })),
+    ))
 }

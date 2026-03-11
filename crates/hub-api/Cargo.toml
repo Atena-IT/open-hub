@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+serde_yaml = "0.9"
 common       = { path = "../common" }
 db-layer     = { path = "../db-layer" }
 s3-storage   = { path = "../s3-storage" }

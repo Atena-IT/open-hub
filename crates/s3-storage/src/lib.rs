@@ -1,18 +1,16 @@
 use aws_config::{BehaviorVersion, Region};
 use aws_credential_types::Credentials;
 use aws_sdk_s3::{
-    config::Builder as S3ConfigBuilder,
-    presigning::PresigningConfig,
-    primitives::ByteStream,
+    config::Builder as S3ConfigBuilder, presigning::PresigningConfig, primitives::ByteStream,
     Client,
 };
 use std::time::Duration;
 
 #[derive(Clone)]
 pub struct S3Client {
-    inner:          Client,
+    inner: Client,
     presign_client: Client,
-    bucket:         String,
+    bucket: String,
 }
 
 impl S3Client {
@@ -67,7 +65,11 @@ impl S3Client {
             inner.clone()
         };
 
-        Ok(Self { inner, presign_client, bucket: bucket.to_owned() })
+        Ok(Self {
+            inner,
+            presign_client,
+            bucket: bucket.to_owned(),
+        })
     }
 
     /// Upload bytes directly (single-part, suitable for objects ≤ 5 GiB).
@@ -87,14 +89,15 @@ impl S3Client {
 
     /// Check whether an object exists (HEAD request).
     pub async fn object_exists(&self, key: &str) -> anyhow::Result<bool> {
-        match self.inner
+        match self
+            .inner
             .head_object()
             .bucket(&self.bucket)
             .key(key)
             .send()
             .await
         {
-            Ok(_)  => Ok(true),
+            Ok(_) => Ok(true),
             Err(e) => {
                 if e.as_service_error()
                     .map(|se| se.is_not_found())
@@ -109,15 +112,12 @@ impl S3Client {
     }
 
     /// Generate a pre-signed GET URL valid for `expiry`.
-    pub async fn presign_get(
-        &self,
-        key: &str,
-        expiry: Duration,
-    ) -> anyhow::Result<String> {
+    pub async fn presign_get(&self, key: &str, expiry: Duration) -> anyhow::Result<String> {
         let cfg = PresigningConfig::expires_in(expiry)
             .map_err(|e| anyhow::anyhow!("presign config error: {e}"))?;
 
-        let presigned = self.presign_client
+        let presigned = self
+            .presign_client
             .get_object()
             .bucket(&self.bucket)
             .key(key)
@@ -129,15 +129,12 @@ impl S3Client {
     }
 
     /// Generate a pre-signed PUT URL valid for `expiry`.
-    pub async fn presign_put(
-        &self,
-        key: &str,
-        expiry: Duration,
-    ) -> anyhow::Result<String> {
+    pub async fn presign_put(&self, key: &str, expiry: Duration) -> anyhow::Result<String> {
         let cfg = PresigningConfig::expires_in(expiry)
             .map_err(|e| anyhow::anyhow!("presign config error: {e}"))?;
 
-        let presigned = self.presign_client
+        let presigned = self
+            .presign_client
             .put_object()
             .bucket(&self.bucket)
             .key(key)
@@ -154,7 +151,8 @@ impl S3Client {
 
     /// Download an object's bytes from S3.
     pub async fn get_object(&self, key: &str) -> anyhow::Result<bytes::Bytes> {
-        let resp = self.inner
+        let resp = self
+            .inner
             .get_object()
             .bucket(&self.bucket)
             .key(key)
@@ -162,7 +160,10 @@ impl S3Client {
             .await
             .map_err(|e| anyhow::anyhow!("S3 get_object failed: {e}"))?;
 
-        let data = resp.body.collect().await
+        let data = resp
+            .body
+            .collect()
+            .await
             .map_err(|e| anyhow::anyhow!("S3 body read failed: {e}"))?;
 
         Ok(data.into_bytes())

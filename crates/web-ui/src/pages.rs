@@ -1,3 +1,4 @@
+use crate::WebState;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
@@ -6,14 +7,17 @@ use axum::{
 };
 use serde::Deserialize;
 use tera::Context;
-use crate::WebState;
 
 fn render(state: &WebState, template: &str, ctx: &Context) -> Response {
     match state.tera.render(template, ctx) {
         Ok(html) => Html(html).into_response(),
         Err(e) => {
             tracing::error!("Template render error: {e}");
-            (StatusCode::INTERNAL_SERVER_ERROR, format!("Template error: {e}")).into_response()
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Template error: {e}"),
+            )
+                .into_response()
         }
     }
 }
@@ -36,15 +40,15 @@ pub struct LoginForm {
     pub password: String,
 }
 
-pub async fn login_submit(
-    State(state): State<WebState>,
-    Form(_form): Form<LoginForm>,
-) -> Response {
+pub async fn login_submit(State(state): State<WebState>, Form(_form): Form<LoginForm>) -> Response {
     // For now, redirect to home after login attempt
     // Full session management would require cookies
     let mut ctx = Context::new();
     ctx.insert("title", "Login");
-    ctx.insert("message", "Login functionality coming soon. Use the API with tokens.");
+    ctx.insert(
+        "message",
+        "Login functionality coming soon. Use the API with tokens.",
+    );
     render(&state, "login.html", &ctx)
 }
 
@@ -67,7 +71,10 @@ pub async fn signup_submit(
 ) -> Response {
     let mut ctx = Context::new();
     ctx.insert("title", "Sign Up");
-    ctx.insert("message", "Registration functionality coming soon. Use the API.");
+    ctx.insert(
+        "message",
+        "Registration functionality coming soon. Use the API.",
+    );
     render(&state, "signup.html", &ctx)
 }
 
@@ -93,30 +100,37 @@ pub async fn new_repo_submit(
 ) -> Response {
     let mut ctx = Context::new();
     ctx.insert("title", "New Repository");
-    ctx.insert("message", "Repository creation via web coming soon. Use the API.");
+    ctx.insert(
+        "message",
+        "Repository creation via web coming soon. Use the API.",
+    );
     render(&state, "new_repo.html", &ctx)
 }
 
-pub async fn user_profile(
-    State(state): State<WebState>,
-    Path(owner): Path<String>,
-) -> Response {
+pub async fn user_profile(State(state): State<WebState>, Path(owner): Path<String>) -> Response {
     let mut ctx = Context::new();
     ctx.insert("title", &owner);
     ctx.insert("owner", &owner);
 
     // List repos for this owner
-    if let Ok(Some(user)) = db_layer::queries::users::find_user_by_username(&state.hub.pool, &owner).await {
-        if let Ok(repos) = db_layer::queries::repositories::list_repos_for_owner(&state.hub.pool, user.id).await {
-            let repo_list: Vec<serde_json::Value> = repos.iter().map(|r| {
-                serde_json::json!({
-                    "name": r.name,
-                    "full_name": r.full_name,
-                    "description": r.description,
-                    "repo_type": r.repo_type,
-                    "private": r.private,
+    if let Ok(Some(user)) =
+        db_layer::queries::users::find_user_by_username(&state.hub.pool, &owner).await
+    {
+        if let Ok(repos) =
+            db_layer::queries::repositories::list_repos_for_owner(&state.hub.pool, user.id).await
+        {
+            let repo_list: Vec<serde_json::Value> = repos
+                .iter()
+                .map(|r| {
+                    serde_json::json!({
+                        "name": r.name,
+                        "full_name": r.full_name,
+                        "description": r.description,
+                        "repo_type": r.repo_type,
+                        "private": r.private,
+                    })
                 })
-            }).collect();
+                .collect();
             ctx.insert("repos", &repo_list);
         }
     }
@@ -134,16 +148,23 @@ pub async fn repo_detail(
     ctx.insert("owner", &owner);
     ctx.insert("repo", &repo);
 
-    if let Ok(Some(repo_row)) = db_layer::queries::repositories::find_repo_by_full_name(&state.hub.pool, &full_name).await {
+    if let Ok(Some(repo_row)) =
+        db_layer::queries::repositories::find_repo_by_full_name(&state.hub.pool, &full_name).await
+    {
         ctx.insert("description", &repo_row.description);
-        if let Ok(files) = db_layer::queries::repo_files::list_files(&state.hub.pool, repo_row.id, None).await {
-            let file_list: Vec<serde_json::Value> = files.iter().map(|f| {
-                serde_json::json!({
-                    "path": f.path,
-                    "size": f.size,
-                    "is_lfs": f.is_lfs,
+        if let Ok(files) =
+            db_layer::queries::repo_files::list_files(&state.hub.pool, repo_row.id, None).await
+        {
+            let file_list: Vec<serde_json::Value> = files
+                .iter()
+                .map(|f| {
+                    serde_json::json!({
+                        "path": f.path,
+                        "size": f.size,
+                        "is_lfs": f.is_lfs,
+                    })
                 })
-            }).collect();
+                .collect();
             ctx.insert("files", &file_list);
         }
     }
@@ -167,15 +188,22 @@ pub async fn repo_tree(
     ctx.insert("repo", repo);
     ctx.insert("current_path", path.unwrap_or(""));
 
-    if let Ok(Some(repo_row)) = db_layer::queries::repositories::find_repo_by_full_name(&state.hub.pool, &full_name).await {
-        if let Ok(files) = db_layer::queries::repo_files::list_files(&state.hub.pool, repo_row.id, path).await {
-            let file_list: Vec<serde_json::Value> = files.iter().map(|f| {
-                serde_json::json!({
-                    "path": f.path,
-                    "size": f.size,
-                    "is_lfs": f.is_lfs,
+    if let Ok(Some(repo_row)) =
+        db_layer::queries::repositories::find_repo_by_full_name(&state.hub.pool, &full_name).await
+    {
+        if let Ok(files) =
+            db_layer::queries::repo_files::list_files(&state.hub.pool, repo_row.id, path).await
+        {
+            let file_list: Vec<serde_json::Value> = files
+                .iter()
+                .map(|f| {
+                    serde_json::json!({
+                        "path": f.path,
+                        "size": f.size,
+                        "is_lfs": f.is_lfs,
+                    })
                 })
-            }).collect();
+                .collect();
             ctx.insert("files", &file_list);
         }
     }

@@ -1,0 +1,92 @@
+name: integration tests
+
+on:
+  push:
+    branches: [ "master", "main" ]
+    paths:
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'tests/**'
+      - 'tests/integration/**'
+      - 'deployment/Dockerfile'
+      - 'deployment/docker-compose.yml'
+      - '.github/workflows/integration-tests.yml'
+  pull_request:
+    branches: [ "master", "main" ]
+    paths:
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'tests/**'
+      - 'tests/integration/**'
+      - 'deployment/Dockerfile'
+      - 'deployment/docker-compose.yml'
+      - '.github/workflows/integration-tests.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration:
+    name: integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+
+      - name: set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: false
+
+      - name: install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq curl git-lfs
+
+      - name: prepare environment
+        run: cp deployment/.env.example .env
+
+      - name: set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: build images with Buildx Bake
+        uses: docker/bake-action@v5
+        with:
+          workdir: deployment
+          files: docker-compose.yml
+          load: true
+          set: |
+            xet-server.cache-from=type=gha,scope=xet-server
+            xet-server.cache-to=type=gha,scope=xet-server,mode=max
+            test-runner.cache-from=type=gha,scope=test-runner
+            test-runner.cache-to=type=gha,scope=test-runner,mode=max
+
+      - name: start Docker Compose stack
+        run: |
+          docker compose -f deployment/docker-compose.yml up -d --wait
+
+      - name: run shell e2e tests
+        run: |
+          ./tests/e2e/run_e2e.sh --no-build --keep-up
+          ./tests/e2e/run_hf_xet_e2e.sh --no-build --keep-up --use-docker
+
+      - name: run Hub API integration tests
+        run: |
+          uv run tests/integration/roundtrip.py
+          uv run tests/integration/integration_repo_search.py
+          uv run tests/integration/integration_upload_file.py
+          uv run tests/integration/integration_upload_folder.py
+          uv run tests/integration/integration_create_commit.py
+          uv run tests/integration/integration_create_commit_deletions.py
+          uv run tests/integration/integration_model_card.py
+          uv run tests/integration/integration_hffilesystem.py
+          uv run tests/integration/test_downloads.py
+
+      - name: fetch Docker logs on failure
+        if: failure()
+        run: |
+          touch .env
+          docker compose -f deployment/docker-compose.yml logs

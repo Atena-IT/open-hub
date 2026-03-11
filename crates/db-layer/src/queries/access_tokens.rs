@@ -33,7 +33,10 @@ pub async fn create_token(
     Ok(row)
 }
 
-pub async fn find_token_by_hash(pool: &PgPool, token_hash: &[u8]) -> anyhow::Result<Option<AccessTokenRow>> {
+pub async fn find_token_by_hash(
+    pool: &PgPool,
+    token_hash: &[u8],
+) -> anyhow::Result<Option<AccessTokenRow>> {
     let row = sqlx::query_as::<_, AccessTokenRow>(
         "SELECT id, user_id, name, token_hash, scopes, last_used, created_at FROM access_tokens WHERE token_hash = $1",
     )
@@ -43,7 +46,10 @@ pub async fn find_token_by_hash(pool: &PgPool, token_hash: &[u8]) -> anyhow::Res
     Ok(row)
 }
 
-pub async fn list_tokens_for_user(pool: &PgPool, user_id: Uuid) -> anyhow::Result<Vec<AccessTokenRow>> {
+pub async fn list_tokens_for_user(
+    pool: &PgPool,
+    user_id: Uuid,
+) -> anyhow::Result<Vec<AccessTokenRow>> {
     let rows = sqlx::query_as::<_, AccessTokenRow>(
         "SELECT id, user_id, name, token_hash, scopes, last_used, created_at FROM access_tokens WHERE user_id = $1 ORDER BY created_at DESC",
     )
@@ -54,13 +60,11 @@ pub async fn list_tokens_for_user(pool: &PgPool, user_id: Uuid) -> anyhow::Resul
 }
 
 pub async fn delete_token(pool: &PgPool, token_id: Uuid, user_id: Uuid) -> anyhow::Result<bool> {
-    let result = sqlx::query(
-        "DELETE FROM access_tokens WHERE id = $1 AND user_id = $2"
-    )
-    .bind(token_id)
-    .bind(user_id)
-    .execute(pool)
-    .await?;
+    let result = sqlx::query("DELETE FROM access_tokens WHERE id = $1 AND user_id = $2")
+        .bind(token_id)
+        .bind(user_id)
+        .execute(pool)
+        .await?;
     Ok(result.rows_affected() > 0)
 }
 

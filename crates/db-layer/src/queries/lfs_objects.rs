@@ -34,7 +34,11 @@ pub async fn upsert_lfs_object(
     Ok(row)
 }
 
-pub async fn find_lfs_object(pool: &PgPool, repo_id: Uuid, oid: &str) -> anyhow::Result<Option<LfsObjectRow>> {
+pub async fn find_lfs_object(
+    pool: &PgPool,
+    repo_id: Uuid,
+    oid: &str,
+) -> anyhow::Result<Option<LfsObjectRow>> {
     let row = sqlx::query_as::<_, LfsObjectRow>(
         "SELECT id, repo_id, oid, size, s3_key, created_at FROM lfs_objects WHERE repo_id = $1 AND oid = $2",
     )

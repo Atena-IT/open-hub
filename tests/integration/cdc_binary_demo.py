@@ -1,6 +1,15 @@
+# /// script
+# requires-python = ">=3.8"
+# dependencies = [
+#   "requests",
+# ]
+# ///
+
 import os
 import secrets
 import time
+import os
+os.environ['HF_ENDPOINT'] = os.environ.get('HF_ENDPOINT', 'http://localhost:8080')
 from huggingface_hub import HfApi
 import requests
 

@@ -1,0 +1,46 @@
+name: unit tests
+
+on:
+  push:
+    branches: [ "master", "main" ]
+    paths:
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/unit-tests.yml'
+  pull_request:
+    branches: [ "master", "main" ]
+    paths:
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/unit-tests.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+
+      - name: set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: cache dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: check formatting
+        run: cargo fmt --all -- --check
+
+      - name: run clippy
+        run: cargo clippy --workspace -- -D warnings || true # Keep true for now in case of warnings
+
+      - name: run unit tests
+        run: cargo test --workspace

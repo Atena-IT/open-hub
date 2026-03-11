@@ -40,6 +40,7 @@ import os
 import struct
 import sys
 import tempfile
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -55,14 +56,14 @@ HF_FILE_URL   = os.environ.get("HF_FILE_URL",
     "https://huggingface.co/bert-base-uncased/resolve/main/vocab.txt")
 SKIP_DOWNLOAD = os.environ.get("SKIP_HF_DOWNLOAD", "0") == "1"
 
-# When docker-compose generates presigned URLs with the MinIO internal hostname
-# (e.g. http://minio:9000/...) they are unreachable from the host.  Set
-# MINIO_INTERNAL_HOST and MINIO_EXTERNAL_HOST to remap them.
-MINIO_INTERNAL = os.environ.get("MINIO_INTERNAL_HOST", "minio:9000")
-MINIO_EXTERNAL = os.environ.get("MINIO_EXTERNAL_HOST", "localhost:9000")
+# When docker-compose generates presigned URLs with the MinIO external hostname
+# (e.g. http://localhost:9000/...) they may be unreachable from inside a docker container.
+# Set S3_REWRITE_FROM and S3_REWRITE_TO to remap them.
+S3_REWRITE_FROM = os.environ.get("S3_REWRITE_FROM")
+S3_REWRITE_TO = os.environ.get("S3_REWRITE_TO")
 
 REPO_TYPE = "model"   # singular — URL becomes /api/models/...
-NAMESPACE = "hf-xet-test"
+NAMESPACE = f"hf-xet-test-{uuid.uuid4().hex[:8]}"
 REPO      = "roundtrip"
 REVISION  = "main"
 
@@ -70,8 +71,10 @@ CACHE_PATH = Path(tempfile.gettempdir()) / "xet_e2e_vocab.txt"
 
 
 def normalize_url(url: str) -> str:
-    """Rewrite docker-internal MinIO URLs to the externally reachable host."""
-    return url.replace(f"http://{MINIO_INTERNAL}", f"http://{MINIO_EXTERNAL}")
+    """Rewrite S3 presigned URLs if needed (e.g. localhost -> minio inside docker)."""
+    if S3_REWRITE_FROM and S3_REWRITE_TO:
+        return url.replace(S3_REWRITE_FROM, S3_REWRITE_TO)
+    return url
 
 
 # ── Optional dependencies ──────────────────────────────────────────────────────
@@ -219,8 +222,8 @@ def parse_xorb(data: bytes) -> bytes:
 # ── MDB shard format ───────────────────────────────────────────────────────────
 
 MDB_SHARD_HEADER_TAG = (
-    b"HFRepoMetaData0"
-    + bytes([85, 105, 103, 69, 106, 123, 129, 87,
+    b"HFRepoMetaData"
+    + bytes([0, 85, 105, 103, 69, 106, 123, 129, 87,
              131, 165, 189, 217, 92, 205, 209, 74, 169])
 )
 assert len(MDB_SHARD_HEADER_TAG) == 32
@@ -288,13 +291,29 @@ def build_shard(
 
 # ── CAS HTTP helpers ───────────────────────────────────────────────────────────
 
-def _get_token(scope: str) -> str:
+def _get_token(scope: str, hub_token: str) -> str:
     """Returns the access_token JWT.  Always uses CAS_URL directly."""
     url = (f"{CAS_URL}/api/{REPO_TYPE}s/{NAMESPACE}/{REPO}"
            f"/xet-{scope}-token/{REVISION}")
-    r = requests.get(url, timeout=10)
+    r = requests.get(url, headers={"Authorization": f"Bearer {hub_token}"}, timeout=10)
     r.raise_for_status()
     return r.json()["accessToken"]
+
+def _register_and_create_repo() -> str:
+    print(f"    Registering user {NAMESPACE}…")
+    r = requests.post(f"{CAS_URL}/api/auth/register", json={"username": NAMESPACE, "password": "password"}, timeout=10)
+    r.raise_for_status()
+    hub_token = r.json()["token"]
+
+    print(f"    Creating repo {NAMESPACE}/{REPO}…")
+    r = requests.post(
+        f"{CAS_URL}/api/repos/create",
+        headers={"Authorization": f"Bearer {hub_token}"},
+        json={"name": REPO, "type": REPO_TYPE, "private": False},
+        timeout=10
+    )
+    r.raise_for_status()
+    return hub_token
 
 
 def upload_xorb(token: str, xorb_hash: bytes, xorb_bytes: bytes) -> bool:
@@ -431,7 +450,8 @@ def main() -> None:
 
     # ── Step 2: get write token ────────────────────────────────────────────────
     step(2, "Obtaining write token")
-    write_token = _get_token("write")
+    hub_token = _register_and_create_repo()
+    write_token = _get_token("write", hub_token)
     print(f"    casUrl: {CAS_URL}")
 
     # ── Step 3: upload ─────────────────────────────────────────────────────────
@@ -488,7 +508,7 @@ def main() -> None:
 
     # ── Step 4: read token + reconstruction ───────────────────────────────────
     step(4, "Querying reconstruction")
-    read_token = _get_token("read")
+    read_token = _get_token("read", hub_token)
 
     if using_hf_xet and file_hash_raw is None:
         print("  hf_xet upload succeeded but returned an opaque hash.")
@@ -506,10 +526,18 @@ def main() -> None:
     step(5, "Downloading xorb via presigned URL")
     # fetch_info: {xorb_api_hash: [{url, range, url_range}]}
     first_entry = next(iter(fetch_info.values()))[0]
-    presigned   = normalize_url(first_entry["url"])
+    original_url = first_entry["url"]
+    presigned = normalize_url(original_url)
     print(f"    {presigned[:72]}…")
 
-    r = requests.get(presigned, timeout=120)
+    headers = {}
+    if S3_REWRITE_FROM and S3_REWRITE_TO and original_url != presigned:
+        # If we rewrote the URL (e.g. localhost -> minio), we must preserve the original
+        # Host header so the S3 presigned URL signature remains valid!
+        original_host = S3_REWRITE_FROM.split("://")[-1]
+        headers["Host"] = original_host
+
+    r = requests.get(presigned, headers=headers, timeout=120)
     r.raise_for_status()
     downloaded_xorb = r.content
     print(f"    Downloaded: {len(downloaded_xorb):,} bytes")

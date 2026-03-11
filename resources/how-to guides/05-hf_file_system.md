@@ -1,0 +1,122 @@
+# Interact with the Hub through the Filesystem API
+
+In addition to the [HfApi](/docs/huggingface_hub/v1.6.0/en/package_reference/hf_api#huggingface_hub.HfApi), the `huggingface_hub` library provides [HfFileSystem](/docs/huggingface_hub/v1.6.0/en/package_reference/hf_file_system#huggingface_hub.HfFileSystem), a pythonic [fsspec-compatible](https://filesystem-spec.readthedocs.io/en/latest/) file interface to the Hugging Face Hub. The [HfFileSystem](/docs/huggingface_hub/v1.6.0/en/package_reference/hf_file_system#huggingface_hub.HfFileSystem) builds on top of the [HfApi](/docs/huggingface_hub/v1.6.0/en/package_reference/hf_api#huggingface_hub.HfApi) and offers typical filesystem style operations like `cp`, `mv`, `ls`, `du`, `glob`, `get_file`, and `put_file`.
+
+> [!WARNING]
+> [HfFileSystem](/docs/huggingface_hub/v1.6.0/en/package_reference/hf_file_system#huggingface_hub.HfFileSystem) provides fsspec compatibility, which is useful for libraries that require it (e.g., reading
+>   Hugging Face datasets and buckets directly with `pandas`). However, it introduces additional overhead due to this compatibility
+>   layer. For better performance and reliability, it's recommended to use [HfApi](/docs/huggingface_hub/v1.6.0/en/package_reference/hf_api#huggingface_hub.HfApi) methods when possible.
+
+## Usage
+
+```python
+>>> from huggingface_hub import hffs
+
+>>> # List all files in a dataset directory
+>>> hffs.ls("datasets/my-username/my-dataset-repo/data", detail=False)
+['datasets/my-username/my-dataset-repo/data/train.csv', 'datasets/my-username/my-dataset-repo/data/test.csv']
+
+>>> # List all files in a bucket directory
+>>> hffs.ls("buckets/my-username/my-bucket/experiment-data", detail=False)
+['bucket/my-username/my-bucket/data/train-0000.parquet', 'bucket/my-username/my-bucket/data/train-0001.parquet', ...]
+
+>>> # List all ".csv" files in a dataset repository
+>>> hffs.glob("datasets/my-username/my-dataset-repo/**/*.csv")
+['datasets/my-username/my-dataset-repo/data/train.csv', 'datasets/my-username/my-dataset-repo/data/test.csv']
+
+>>> # Read a remote file
+>>> with hffs.open("datasets/my-username/my-dataset-repo/data/train.csv", "r") as f:
+...     train_data = f.readlines()
+
+>>> # Read the content of a remote file as a string
+>>> train_data = hffs.read_text("datasets/my-username/my-dataset-repo/data/train.csv", revision="dev")
+
+>>> # Write a remote file
+>>> with hffs.open("datasets/my-username/my-dataset-repo/data/validation.csv", "w") as f:
+...     f.write("text,label")
+...     f.write("Fantastic movie!,good")
+```
+
+The optional `revision` argument can be passed to run an operation from a specific commit such as a branch, tag name, or a commit hash. Note that `revision` is not compatible with Buckets. 
+
+Unlike Python's built-in `open`, `fsspec`'s `open` defaults to binary mode, `"rb"`. This means you must explicitly set mode as `"r"` for reading and `"w"` for writing in text mode. Appending to a file (modes `"a"` and `"ab"`) is not supported yet.
+
+## Integrations
+
+The [HfFileSystem](/docs/huggingface_hub/v1.6.0/en/package_reference/hf_file_system#huggingface_hub.HfFileSystem) can be used with any library that integrates `fsspec`, provided the URL follows the scheme:
+
+```
+hf://[][@]/
+```
+
+The `repo_type_prefix` is `datasets/` for datasets, `spaces/` for Spaces, and models don't need a prefix in the URL.
+
+In addition to repositories, the [HfFileSystem](/docs/huggingface_hub/v1.6.0/en/package_reference/hf_file_system#huggingface_hub.HfFileSystem) also supports Hugging Face Buckets which are a S3-like object storage (see [this guide](./buckets) for more details):
+
+```
+hf://buckets//
+```
+
+Some interesting integrations where [HfFileSystem](/docs/huggingface_hub/v1.6.0/en/package_reference/hf_file_system#huggingface_hub.HfFileSystem) simplifies interacting with the Hub are listed below:
+
+* Reading/writing a [Pandas](https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html#reading-writing-remote-files) DataFrame from/to a Hub repository:
+
+  ```python
+  >>> import pandas as pd
+
+  >>> # Read a remote CSV file into a dataframe
+  >>> df = pd.read_csv("hf://datasets/my-username/my-dataset-repo/train.csv")
+  >>> df = pd.read_csv("hf://buckets/my-username/my-bucket/train.csv")
+
+  >>> # Write a dataframe to a remote CSV file
+  >>> df.to_csv("hf://datasets/my-username/my-dataset-repo/test.csv")
+  >>> df.to_csv("hf://buckets/my-username/my-bucket/test.csv")
+  ```
+
+The same workflow can also be used for [Dask](https://docs.dask.org/en/stable/how-to/connect-to-remote-data.html) and [Polars](https://pola-rs.github.io/polars/py-polars/html/reference/io.html) DataFrames.
+
+* Querying (remote) Hub files with [DuckDB](https://duckdb.org/docs/guides/python/filesystems):
+
+  ```python
+  >>> from huggingface_hub import HfFileSystem
+  >>> import duckdb
+
+  >>> fs = HfFileSystem()
+  >>> duckdb.register_filesystem(fs)
+  >>> # Query a remote file and get the result back as a dataframe
+  >>> fs_query_file = "hf://datasets/my-username/my-dataset-repo/data_dir/data.parquet"
+  >>> df = duckdb.query(f"SELECT * FROM '{fs_query_file}' LIMIT 10").df()
+  ```
+
+* Using the Hub as an array store with [Zarr](https://zarr.readthedocs.io/en/stable/tutorial.html#io-with-fsspec):
+
+  ```python
+  >>> import numpy as np
+  >>> import zarr
+
+  >>> embeddings = np.random.randn(50000, 1000).astype("float32")
+
+  >>> # Write an array to a repo
+  >>> with zarr.open_group("hf://my-username/my-model-repo/array-store", mode="w") as root:
+  ...    foo = root.create_group("embeddings")
+  ...    foobar = foo.zeros('experiment_0', shape=(50000, 1000), chunks=(10000, 1000), dtype='f4')
+  ...    foobar[:] = embeddings
+
+  >>> # Read an array from a repo
+  >>> with zarr.open_group("hf://my-username/my-model-repo/array-store", mode="r") as root:
+  ...    first_row = root["embeddings/experiment_0"][0]
+  ```
+
+## Authentication
+
+In many cases, you must be logged in with a Hugging Face account to interact with the Hub. Refer to the [Authentication](../quick-start#authentication) section of the documentation to learn more about authentication methods on the Hub.
+
+It is also possible to log in programmatically by passing your `token` as an argument to [HfFileSystem](/docs/huggingface_hub/v1.6.0/en/package_reference/hf_file_system#huggingface_hub.HfFileSystem):
+
+```python
+>>> from huggingface_hub import HfFileSystem
+>>> hffs = HfFileSystem(token=token)
+```
+
+If you log in this way, be careful not to accidentally leak the token when sharing your source code!
+
