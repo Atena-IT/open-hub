@@ -33,4 +33,4 @@ http         = "1"
 hex              = "0.4"
 blake3           = "1"
 http-body-util   = "0.1"
-sqlx             = { version = "0.7", features = ["postgres", "runtime-tokio", "macros"] }
+sqlx             = { version = "0.8", features = ["postgres", "runtime-tokio", "macros"] }
