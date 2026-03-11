@@ -25,100 +25,100 @@ pub fn hub_api_router(state: HubState) -> Router {
         .route("/api/models", get(repos::list_models))
         .route("/api/datasets", get(repos::list_datasets))
         .route("/api/repos/create", post(repos::create_repo))
-        .route("/api/models/:owner/:repo", get(repos::repo_info))
+        .route("/api/models/{owner}/{repo}", get(repos::repo_info))
         .route(
-            "/api/models/:owner/:repo/settings",
+            "/api/models/{owner}/{repo}/settings",
             axum::routing::put(repos::update_repo_settings),
         )
         .route(
-            "/api/models/:owner/:repo/revision/:revision",
+            "/api/models/{owner}/{repo}/revision/{revision}",
             get(repos::repo_info_revision),
         )
-        .route("/api/datasets/:owner/:repo", get(repos::repo_info))
+        .route("/api/datasets/{owner}/{repo}", get(repos::repo_info))
         .route(
-            "/api/datasets/:owner/:repo/settings",
+            "/api/datasets/{owner}/{repo}/settings",
             axum::routing::put(repos::update_repo_settings),
         )
         .route(
-            "/api/datasets/:owner/:repo/revision/:revision",
+            "/api/datasets/{owner}/{repo}/revision/{revision}",
             get(repos::repo_info_revision),
         )
-        .route("/api/spaces/:owner/:repo", get(repos::repo_info))
+        .route("/api/spaces/{owner}/{repo}", get(repos::repo_info))
         .route(
-            "/api/spaces/:owner/:repo/settings",
+            "/api/spaces/{owner}/{repo}/settings",
             axum::routing::put(repos::update_repo_settings),
         )
         .route(
-            "/api/spaces/:owner/:repo/revision/:revision",
+            "/api/spaces/{owner}/{repo}/revision/{revision}",
             get(repos::repo_info_revision),
         )
         // Tree listing
         .route(
-            "/api/models/:owner/:repo/tree/:revision",
+            "/api/models/{owner}/{repo}/tree/{revision}",
             get(files::tree_list),
         )
         .route(
-            "/api/models/:owner/:repo/tree/:revision/*path",
+            "/api/models/{owner}/{repo}/tree/{revision}/{*path}",
             get(files::tree_list),
         )
         .route(
-            "/api/datasets/:owner/:repo/tree/:revision",
+            "/api/datasets/{owner}/{repo}/tree/{revision}",
             get(files::tree_list),
         )
         .route(
-            "/api/datasets/:owner/:repo/tree/:revision/*path",
+            "/api/datasets/{owner}/{repo}/tree/{revision}/{*path}",
             get(files::tree_list),
         )
         .route(
-            "/api/spaces/:owner/:repo/tree/:revision",
+            "/api/spaces/{owner}/{repo}/tree/{revision}",
             get(files::tree_list),
         )
         .route(
-            "/api/spaces/:owner/:repo/tree/:revision/*path",
+            "/api/spaces/{owner}/{repo}/tree/{revision}/{*path}",
             get(files::tree_list),
         )
         // Preupload
         .route(
-            "/api/models/:owner/:repo/preupload/:revision",
+            "/api/models/{owner}/{repo}/preupload/{revision}",
             post(files::preupload),
         )
         .route(
-            "/api/datasets/:owner/:repo/preupload/:revision",
+            "/api/datasets/{owner}/{repo}/preupload/{revision}",
             post(files::preupload),
         )
         .route(
-            "/api/spaces/:owner/:repo/preupload/:revision",
+            "/api/spaces/{owner}/{repo}/preupload/{revision}",
             post(files::preupload),
         )
         // Commit
         .route(
-            "/api/models/:owner/:repo/commit/:revision",
+            "/api/models/{owner}/{repo}/commit/{revision}",
             post(files::commit),
         )
         .route(
-            "/api/datasets/:owner/:repo/commit/:revision",
+            "/api/datasets/{owner}/{repo}/commit/{revision}",
             post(files::commit),
         )
         .route(
-            "/api/spaces/:owner/:repo/commit/:revision",
+            "/api/spaces/{owner}/{repo}/commit/{revision}",
             post(files::commit),
         )
         // Resolve (download) — with type prefix
         .route(
-            "/models/:owner/:repo/resolve/:revision/*path",
+            "/models/{owner}/{repo}/resolve/{revision}/{*path}",
             get(files::resolve_file),
         )
         .route(
-            "/datasets/:owner/:repo/resolve/:revision/*path",
+            "/datasets/{owner}/{repo}/resolve/{revision}/{*path}",
             get(files::resolve_file),
         )
         .route(
-            "/spaces/:owner/:repo/resolve/:revision/*path",
+            "/spaces/{owner}/{repo}/resolve/{revision}/{*path}",
             get(files::resolve_file),
         )
         // Resolve (download) — without type prefix (used by huggingface_hub for models)
         .route(
-            "/:owner/:repo/resolve/:revision/*path",
+            "/{owner}/{repo}/resolve/{revision}/{*path}",
             get(files::resolve_file),
         )
         // Tokens (combined GET + POST on same path)
@@ -126,54 +126,54 @@ pub fn hub_api_router(state: HubState) -> Router {
             "/api/tokens",
             get(tokens::list_tokens).post(tokens::create_token),
         )
-        .route("/api/tokens/:token_id", delete(tokens::delete_token))
+        .route("/api/tokens/{token_id}", delete(tokens::delete_token))
         // Xet CAS Auth
         .route(
-            "/api/models/:owner/:repo/xet-read-token",
+            "/api/models/{owner}/{repo}/xet-read-token",
             get(xet_auth::get_xet_read_token),
         )
         .route(
-            "/api/models/:owner/:repo/xet-read-token/:revision",
+            "/api/models/{owner}/{repo}/xet-read-token/{revision}",
             get(xet_auth::get_xet_read_token),
         )
         .route(
-            "/api/models/:owner/:repo/xet-write-token",
+            "/api/models/{owner}/{repo}/xet-write-token",
             get(xet_auth::get_xet_write_token),
         )
         .route(
-            "/api/models/:owner/:repo/xet-write-token/:revision",
+            "/api/models/{owner}/{repo}/xet-write-token/{revision}",
             get(xet_auth::get_xet_write_token),
         )
         .route(
-            "/api/datasets/:owner/:repo/xet-read-token",
+            "/api/datasets/{owner}/{repo}/xet-read-token",
             get(xet_auth::get_xet_read_token),
         )
         .route(
-            "/api/datasets/:owner/:repo/xet-read-token/:revision",
+            "/api/datasets/{owner}/{repo}/xet-read-token/{revision}",
             get(xet_auth::get_xet_read_token),
         )
         .route(
-            "/api/datasets/:owner/:repo/xet-write-token",
+            "/api/datasets/{owner}/{repo}/xet-write-token",
             get(xet_auth::get_xet_write_token),
         )
         .route(
-            "/api/datasets/:owner/:repo/xet-write-token/:revision",
+            "/api/datasets/{owner}/{repo}/xet-write-token/{revision}",
             get(xet_auth::get_xet_write_token),
         )
         .route(
-            "/api/spaces/:owner/:repo/xet-read-token",
+            "/api/spaces/{owner}/{repo}/xet-read-token",
             get(xet_auth::get_xet_read_token),
         )
         .route(
-            "/api/spaces/:owner/:repo/xet-read-token/:revision",
+            "/api/spaces/{owner}/{repo}/xet-read-token/{revision}",
             get(xet_auth::get_xet_read_token),
         )
         .route(
-            "/api/spaces/:owner/:repo/xet-write-token",
+            "/api/spaces/{owner}/{repo}/xet-write-token",
             get(xet_auth::get_xet_write_token),
         )
         .route(
-            "/api/spaces/:owner/:repo/xet-write-token/:revision",
+            "/api/spaces/{owner}/{repo}/xet-write-token/{revision}",
             get(xet_auth::get_xet_write_token),
         )
         // Delete repo
@@ -182,51 +182,54 @@ pub fn hub_api_router(state: HubState) -> Router {
         .with_state(state)
 }
 
-/// LFS routes — /:owner/:repo/info/lfs/...
+/// LFS routes — /{owner}/{repo}/info/lfs/...
 pub fn lfs_api_router(state: HubState) -> Router {
     Router::new()
         .route(
-            "/models/:owner/:repo/info/lfs/objects/batch",
+            "/models/{owner}/{repo}/info/lfs/objects/batch",
             post(lfs::lfs_batch),
         )
         .route(
-            "/datasets/:owner/:repo/info/lfs/objects/batch",
+            "/datasets/{owner}/{repo}/info/lfs/objects/batch",
             post(lfs::lfs_batch),
         )
         .route(
-            "/spaces/:owner/:repo/info/lfs/objects/batch",
+            "/spaces/{owner}/{repo}/info/lfs/objects/batch",
             post(lfs::lfs_batch),
         )
-        .route("/:owner/:repo/info/lfs/objects/batch", post(lfs::lfs_batch))
+        .route(
+            "/{owner}/{repo}/info/lfs/objects/batch",
+            post(lfs::lfs_batch),
+        )
         // Combined GET + PUT on same path
         .route(
-            "/models/:owner/:repo/info/lfs/objects/:oid",
+            "/models/{owner}/{repo}/info/lfs/objects/{oid}",
             get(lfs::lfs_download).put(lfs::lfs_upload),
         )
         .route(
-            "/datasets/:owner/:repo/info/lfs/objects/:oid",
+            "/datasets/{owner}/{repo}/info/lfs/objects/{oid}",
             get(lfs::lfs_download).put(lfs::lfs_upload),
         )
         .route(
-            "/spaces/:owner/:repo/info/lfs/objects/:oid",
+            "/spaces/{owner}/{repo}/info/lfs/objects/{oid}",
             get(lfs::lfs_download).put(lfs::lfs_upload),
         )
         .route(
-            "/:owner/:repo/info/lfs/objects/:oid",
+            "/{owner}/{repo}/info/lfs/objects/{oid}",
             get(lfs::lfs_download).put(lfs::lfs_upload),
         )
         .route(
-            "/models/:owner/:repo/info/lfs/verify",
+            "/models/{owner}/{repo}/info/lfs/verify",
             post(lfs::lfs_verify),
         )
         .route(
-            "/datasets/:owner/:repo/info/lfs/verify",
+            "/datasets/{owner}/{repo}/info/lfs/verify",
             post(lfs::lfs_verify),
         )
         .route(
-            "/spaces/:owner/:repo/info/lfs/verify",
+            "/spaces/{owner}/{repo}/info/lfs/verify",
             post(lfs::lfs_verify),
         )
-        .route("/:owner/:repo/info/lfs/verify", post(lfs::lfs_verify))
+        .route("/{owner}/{repo}/info/lfs/verify", post(lfs::lfs_verify))
         .with_state(state)
 }

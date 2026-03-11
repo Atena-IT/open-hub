@@ -10,5 +10,5 @@ serde_json = { workspace = true }
 tracing    = { workspace = true }
 anyhow     = { workspace = true }
 dotenvy    = "0.15"
-axum       = "0.7"
+axum       = "0.8"
 http       = "1"
