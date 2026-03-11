@@ -53,7 +53,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: build images with Buildx Bake
-        uses: docker/bake-action@v5
+        uses: docker/bake-action@v7
         with:
           workdir: deployment
           files: docker-compose.yml
