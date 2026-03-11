@@ -37,3 +37,4 @@ experiments/*.parquet
 # DB / S3 storage directories (Docker mounts)
 postgres_data/
 minio_data/
+huggingface_hub/
