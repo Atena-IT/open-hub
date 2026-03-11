@@ -55,7 +55,7 @@ jobs:
       - name: build images with Buildx Bake
         uses: docker/bake-action@v7
         with:
-          workdir: deployment
+          source: deployment
           files: docker-compose.yml
           load: true
           set: |
