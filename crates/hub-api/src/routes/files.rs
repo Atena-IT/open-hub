@@ -24,6 +24,9 @@ pub async fn tree_list(
     let repo = params
         .get("repo")
         .ok_or_else(|| AppError::BadRequest("missing repo".into()))?;
+    let revision = params
+        .get("revision")
+        .ok_or_else(|| AppError::BadRequest("missing revision".into()))?;
     let path = params.get("path");
 
     let full_name = format!("{}/{}", owner, repo);
@@ -33,6 +36,7 @@ pub async fn tree_list(
         .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
     let requester_id = auth::resolve_optional_bearer_token(&state.pool, &headers).await?;
     auth::ensure_repo_read_access(&repo_row, &full_name, requester_id)?;
+    auth::ensure_supported_repo_revision(&repo_row, revision)?;
 
     let files = db_layer::queries::repo_files::list_files(
         &state.pool,
@@ -383,6 +387,9 @@ pub async fn resolve_file(
     let repo = params
         .get("repo")
         .ok_or_else(|| AppError::BadRequest("missing repo".into()))?;
+    let revision = params
+        .get("revision")
+        .ok_or_else(|| AppError::BadRequest("missing revision".into()))?;
     let path = params
         .get("path")
         .ok_or_else(|| AppError::BadRequest("missing path".into()))?;
@@ -394,6 +401,7 @@ pub async fn resolve_file(
         .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
     let requester_id = auth::resolve_optional_bearer_token(&state.pool, &headers).await?;
     auth::ensure_repo_read_access(&repo_row, &full_name, requester_id)?;
+    auth::ensure_supported_repo_revision(&repo_row, revision)?;
 
     let file = db_layer::queries::repo_files::find_file(&state.pool, repo_row.id, path)
         .await

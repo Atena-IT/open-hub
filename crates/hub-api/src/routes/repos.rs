@@ -230,9 +230,8 @@ pub async fn repo_info(
 pub async fn repo_info_revision(
     State(state): State<HubState>,
     headers: HeaderMap,
-    Path((owner, repo, _revision)): Path<(String, String, String)>,
+    Path((owner, repo, revision)): Path<(String, String, String)>,
 ) -> Result<Json<RepoInfoResponse>, AppError> {
-    // For now, ignore revision and return the latest head info
     let full_name = format!("{}/{}", owner, repo);
     let repo_row = db_layer::queries::repositories::find_repo_by_full_name(&state.pool, &full_name)
         .await
@@ -240,6 +239,7 @@ pub async fn repo_info_revision(
         .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
     let requester_id = auth::resolve_optional_bearer_token(&state.pool, &headers).await?;
     auth::ensure_repo_read_access(&repo_row, &full_name, requester_id)?;
+    auth::ensure_supported_repo_revision(&repo_row, &revision)?;
 
     let files = db_layer::queries::repo_files::list_files(&state.pool, repo_row.id, None)
         .await

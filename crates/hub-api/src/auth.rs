@@ -112,3 +112,17 @@ pub fn ensure_repo_write_access(repo: &RepoRow, requester_id: Uuid) -> Result<()
         Err(AppError::Forbidden("not the repo owner".into()))
     }
 }
+
+pub fn ensure_supported_repo_revision(
+    repo: &RepoRow,
+    revision: &str,
+) -> Result<(), AppError> {
+    if revision == "main" || repo.head_sha.as_deref() == Some(revision) {
+        Ok(())
+    } else {
+        Err(AppError::NotFound(format!(
+            "revision '{}' not found",
+            revision
+        )))
+    }
+}
