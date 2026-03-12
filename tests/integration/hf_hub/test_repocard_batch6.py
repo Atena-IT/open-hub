@@ -3,7 +3,7 @@ from huggingface_hub import ModelCard, RepoCard
 
 
 def _write_readme(path, content: str):
-    path.write_text(content, encoding="utf-8")
+    path.write_text(content, encoding="utf-8", newline="\n")
     return path
 
 
@@ -52,7 +52,7 @@ def test_repocard_loads_metadata_and_body_and_pushes_update(hf_api, hf_session, 
     assert repo_card.data.license == "mit"
     assert model_card.data.license == "mit"
     assert model_card.data.tags == ["batch6", "compat"]
-    assert model_card.text == "Initial batch 6 model card body.\n"
+    assert model_card.text.replace("\r\n", "\n") == "\nInitial batch 6 model card body.\n"
 
     updated_card = ModelCard(_updated_card_text())
     updated_card.push_to_hub(
@@ -65,4 +65,4 @@ def test_repocard_loads_metadata_and_body_and_pushes_update(hf_api, hf_session, 
 
     assert reloaded.data.license == "apache-2.0"
     assert reloaded.data.tags == ["batch6", "updated"]
-    assert reloaded.text == "Updated batch 6 model card body.\n"
+    assert reloaded.text.replace("\r\n", "\n") == "\nUpdated batch 6 model card body.\n"

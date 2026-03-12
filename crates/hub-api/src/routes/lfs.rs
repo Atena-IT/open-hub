@@ -65,7 +65,7 @@ pub async fn lfs_batch(
 ) -> Result<Json<LfsBatchResponse>, AppError> {
     let token = auth::extract_bearer(&headers)
         .ok_or_else(|| AppError::Unauthorized("missing bearer token".into()))?;
-    let _user_id = auth::resolve_bearer_token(&state.pool, token).await?;
+    let user_id = auth::resolve_bearer_token(&state.pool, token).await?;
 
     let repo_clean = repo.strip_suffix(".git").unwrap_or(&repo);
     let full_name = format!("{}/{}", owner, repo_clean);
@@ -73,6 +73,12 @@ pub async fn lfs_batch(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?
         .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
+
+    match req.operation.as_str() {
+        "download" => auth::ensure_repo_read_access(&repo_row, &full_name, Some(user_id))?,
+        "upload" => auth::ensure_repo_write_access(&repo_row, user_id)?,
+        _ => return Err(AppError::BadRequest("invalid operation".into())),
+    }
 
     let base_url = &state.config.hub_base_url;
     let mut objects = Vec::new();
@@ -173,6 +179,7 @@ pub async fn lfs_batch(
 /// GET /:owner/:repo/info/lfs/objects/:oid — redirect to presigned download
 pub async fn lfs_download(
     State(state): State<HubState>,
+    headers: HeaderMap,
     Path((owner, repo, oid)): Path<(String, String, String)>,
 ) -> Result<Response, AppError> {
     let repo_clean = repo.strip_suffix(".git").unwrap_or(&repo);
@@ -181,6 +188,8 @@ pub async fn lfs_download(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?
         .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
+    let requester_id = auth::resolve_optional_bearer_token(&state.pool, &headers).await?;
+    auth::ensure_repo_read_access(&repo_row, &full_name, requester_id)?;
 
     let lfs_obj = db_layer::queries::lfs_objects::find_lfs_object(&state.pool, repo_row.id, &oid)
         .await
@@ -213,7 +222,7 @@ pub async fn lfs_upload(
 ) -> Result<StatusCode, AppError> {
     let token = auth::extract_bearer(&headers)
         .ok_or_else(|| AppError::Unauthorized("missing bearer token".into()))?;
-    let _user_id = auth::resolve_bearer_token(&state.pool, token).await?;
+    let user_id = auth::resolve_bearer_token(&state.pool, token).await?;
 
     let repo_clean = repo.strip_suffix(".git").unwrap_or(&repo);
     let full_name = format!("{}/{}", owner, repo_clean);
@@ -221,6 +230,7 @@ pub async fn lfs_upload(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?
         .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
+    auth::ensure_repo_write_access(&repo_row, user_id)?;
 
     let s3_key = s3_storage::lfs_key(&oid);
     let body_len = body.len() as i64;
@@ -258,7 +268,7 @@ pub async fn lfs_verify(
 ) -> Result<StatusCode, AppError> {
     let token = auth::extract_bearer(&headers)
         .ok_or_else(|| AppError::Unauthorized("missing bearer token".into()))?;
-    let _user_id = auth::resolve_bearer_token(&state.pool, token).await?;
+    let user_id = auth::resolve_bearer_token(&state.pool, token).await?;
 
     let repo_clean = repo.strip_suffix(".git").unwrap_or(&repo);
     let full_name = format!("{}/{}", owner, repo_clean);
@@ -266,6 +276,7 @@ pub async fn lfs_verify(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?
         .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
+    auth::ensure_repo_write_access(&repo_row, user_id)?;
 
     // Update s3_key now that upload is complete
     let s3_key = s3_storage::lfs_key(&req.oid);

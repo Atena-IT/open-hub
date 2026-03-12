@@ -43,8 +43,7 @@ async fn get_xet_token_impl(
     let token = auth::extract_bearer(&headers)
         .ok_or_else(|| AppError::Unauthorized("missing bearer token".into()))?;
 
-    // Resolve user (ensure they exist and have access)
-    let _user_id = auth::resolve_bearer_token(&state.pool, token).await?;
+    let user_id = auth::resolve_bearer_token(&state.pool, token).await?;
 
     let owner = params
         .get("owner")
@@ -54,16 +53,27 @@ async fn get_xet_token_impl(
         .ok_or_else(|| AppError::BadRequest("missing repo".into()))?;
 
     let full_name = format!("{}/{}", owner, repo);
-    let _repo_row =
-        db_layer::queries::repositories::find_repo_by_full_name(&state.pool, &full_name)
-            .await
-            .map_err(|e| AppError::Internal(e.to_string()))?
-            .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
+    let repo_row = db_layer::queries::repositories::find_repo_by_full_name(&state.pool, &full_name)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
 
     // Validate token_type
     if token_type != "read" && token_type != "write" {
         return Err(AppError::BadRequest("invalid token type".into()));
     }
+
+    let requested_revision = params
+        .get("revision")
+        .map(|revision| revision.as_str())
+        .unwrap_or("main");
+
+    match token_type {
+        "read" => auth::ensure_repo_read_access(&repo_row, &full_name, Some(user_id))?,
+        "write" => auth::ensure_repo_write_access(&repo_row, user_id)?,
+        _ => unreachable!(),
+    }
+    auth::resolve_repo_revision(&state.pool, &repo_row, requested_revision).await?;
 
     let now = chrono::Utc::now().timestamp() as u64;
     let exp = now + state.config.jwt_expiry_secs;
@@ -80,10 +90,7 @@ async fn get_xet_token_impl(
     let claims = Claims {
         sub: full_name.clone(),
         scope: token_type.to_string(),
-        revision: params
-            .get("revision")
-            .cloned()
-            .unwrap_or_else(|| "main".to_string()),
+        revision: requested_revision.to_string(),
         exp,
     };
 

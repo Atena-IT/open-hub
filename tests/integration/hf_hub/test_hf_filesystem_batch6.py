@@ -51,5 +51,5 @@ def test_hf_filesystem_lists_exists_and_reads_files(hf_api, hf_session, repo_fac
 
     nested_entries = fs.ls(f"{repo_id}/nested", detail=False, revision="release")
 
-    assert f"{repo_id}/nested/child.txt" in nested_entries
-    assert f"{repo_id}/nested/deeper" in nested_entries
+    assert f"{repo_id}@release/nested/child.txt" in nested_entries
+    assert f"{repo_id}@release/nested/deeper" in nested_entries

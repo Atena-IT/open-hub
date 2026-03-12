@@ -66,6 +66,13 @@ pub struct TreeEntry {
 pub struct LfsInfo {
     pub oid: String,
     pub size: i64,
+    #[serde(rename = "pointerSize")]
+    pub pointer_size: i64,
+}
+
+fn lfs_pointer_size(oid: &str, size: i64) -> i64 {
+    format!("version https://git-lfs.github.com/spec/v1\noid sha256:{oid}\nsize {size}\n").len()
+        as i64
 }
 
 fn build_tree_entries(
@@ -111,6 +118,7 @@ fn build_tree_entries(
                     f.lfs_oid.as_ref().map(|oid| LfsInfo {
                         oid: oid.clone(),
                         size: f.size,
+                        pointer_size: lfs_pointer_size(oid, f.size),
                     })
                 } else {
                     None
@@ -426,8 +434,8 @@ pub async fn resolve_file(
             .header(
                 "X-Xet-Refresh-Route",
                 format!(
-                    "{}/api/models/{}/{}/xet-read-token/main",
-                    state.config.hub_base_url, owner, repo
+                    "{}/api/models/{}/{}/xet-read-token/{}",
+                    state.config.hub_base_url, owner, repo, revision
                 ),
             );
 

@@ -50,6 +50,9 @@ pub struct SiblingEntry {
 pub struct LfsSiblingInfo {
     pub oid: String,
     pub size: i64,
+    pub sha256: String,
+    #[serde(rename = "pointerSize")]
+    pub pointer_size: i64,
 }
 
 #[derive(Deserialize)]
@@ -244,6 +247,8 @@ pub async fn repo_info(
                 f.lfs_oid.as_ref().map(|oid| LfsSiblingInfo {
                     oid: oid.clone(),
                     size: f.size,
+                    sha256: oid.clone(),
+                    pointer_size: lfs_pointer_size(oid, f.size),
                 })
             } else {
                 None
@@ -286,6 +291,8 @@ pub async fn repo_info_revision(
                 f.lfs_oid.as_ref().map(|oid| LfsSiblingInfo {
                     oid: oid.clone(),
                     size: f.size,
+                    sha256: oid.clone(),
+                    pointer_size: lfs_pointer_size(oid, f.size),
                 })
             } else {
                 None
@@ -605,6 +612,11 @@ fn build_git_ref(name: &str, namespace: &str, target_sha: &str) -> GitRefInfoRes
         git_ref: format!("refs/{}/{}", namespace, name),
         target_commit: target_sha.to_string(),
     }
+}
+
+fn lfs_pointer_size(oid: &str, size: i64) -> i64 {
+    format!("version https://git-lfs.github.com/spec/v1\noid sha256:{oid}\nsize {size}\n").len()
+        as i64
 }
 
 fn ensure_named_ref_name(name: &str, ref_type: &str) -> Result<(), AppError> {
