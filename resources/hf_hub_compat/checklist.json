@@ -88,7 +88,10 @@
         "number": 24,
         "url": "https://github.com/Atena-IT/xet-backend/issues/24"
       },
-      "pr": null,
+      "pr": {
+        "number": 25,
+        "url": "https://github.com/Atena-IT/xet-backend/pull/25"
+      },
       "depends_on": ["batch1"],
       "exit_criteria": [
         "Targeted batch-2 pytest modules pass locally",
