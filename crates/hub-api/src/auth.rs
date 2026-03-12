@@ -66,7 +66,10 @@ pub async fn resolve_bearer_token(pool: &PgPool, token: &str) -> Result<Uuid, Ap
 
 /// Extract and resolve Bearer token from request headers.
 pub fn extract_bearer(headers: &HeaderMap) -> Option<&str> {
-    let value = headers.get(axum::http::header::AUTHORIZATION)?.to_str().ok()?;
+    let value = headers
+        .get(axum::http::header::AUTHORIZATION)?
+        .to_str()
+        .ok()?;
     value.strip_prefix("Bearer ")
 }
 
@@ -96,7 +99,10 @@ pub fn ensure_repo_read_access(
         )));
     }
 
-    Err(AppError::NotFound(format!("repo '{}' not found", full_name)))
+    Err(AppError::NotFound(format!(
+        "repo '{}' not found",
+        full_name
+    )))
 }
 
 pub fn ensure_repo_write_access(repo: &RepoRow, requester_id: Uuid) -> Result<(), AppError> {
