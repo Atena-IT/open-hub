@@ -1,0 +1,229 @@
+{
+  "version": 1,
+  "source_analysis": {
+    "issues": [11, 13, 14, 15, 16],
+    "analysis_pr": 12,
+    "analysis_pr_url": "https://github.com/Atena-IT/xet-backend/pull/12"
+  },
+  "strategy": {
+    "tracking_model": "single_active_batch",
+    "current_pointer": "batch2",
+    "status_values": ["done", "in_progress", "planned", "blocked", "out_of_scope"]
+  },
+  "non_goals": [
+    "spaces",
+    "inference",
+    "jobs",
+    "community_beyond_repo_compat",
+    "buckets_unless_promoted"
+  ],
+  "batches": [
+    {
+      "id": "batch1",
+      "title": "Core HfApi CRUD and basic download workflows",
+      "status": "done",
+      "scope": [
+        "Core HfApi CRUD and auth-adjacent happy paths",
+        "Basic hf_hub_download semantics for current head and main",
+        "File metadata and cache basics",
+        "Core snapshot_download semantics with allow/ignore filters",
+        "Pytest-based CI gate for the compatibility slice"
+      ],
+      "upstream_modules": [
+        "tests/test_hf_api.py",
+        "tests/test_file_download.py",
+        "tests/test_snapshot_download.py"
+      ],
+      "local_test_files": [
+        "tests/integration/hf_hub/test_hf_api_batch1.py",
+        "tests/integration/hf_hub/test_file_download_batch1.py",
+        "tests/integration/hf_hub/test_snapshot_download_batch1.py"
+      ],
+      "server_surfaces": [
+        "crates/hub-api/src/routes/repos.rs",
+        "crates/hub-api/src/routes/files.rs",
+        "crates/common/src/error.rs",
+        ".github/workflows/integration-tests.yml"
+      ],
+      "issue": {
+        "number": 17,
+        "url": "https://github.com/Atena-IT/xet-backend/issues/17"
+      },
+      "pr": {
+        "number": 23,
+        "url": "https://github.com/Atena-IT/xet-backend/pull/23"
+      },
+      "depends_on": [],
+      "exit_criteria": [
+        "Targeted batch-1 pytest modules pass locally",
+        "Full tests/integration/hf_hub suite passes locally",
+        "Overlapping smoke scripts still pass",
+        "GitHub Actions for PR #23 are green"
+      ]
+    },
+    {
+      "id": "batch2",
+      "title": "Deeper download and cache semantics",
+      "status": "planned",
+      "scope": [
+        "More hf_hub_download semantics beyond batch-1 happy paths",
+        "More snapshot_download semantics beyond batch-1 happy paths",
+        "Cache reuse, metadata, and local-dir/cache edge cases that fit the current architecture"
+      ],
+      "upstream_modules": [
+        "tests/test_file_download.py",
+        "tests/test_snapshot_download.py",
+        "tests/test_cache_layout.py",
+        "tests/test_utils_cache.py"
+      ],
+      "local_test_files": [
+        "tests/integration/hf_hub/test_file_download_batch2.py",
+        "tests/integration/hf_hub/test_snapshot_download_batch2.py"
+      ],
+      "server_surfaces": [
+        "crates/hub-api/src/routes/files.rs",
+        "tests/integration/hf_hub/helpers.py"
+      ],
+      "issue": null,
+      "pr": null,
+      "depends_on": ["batch1"],
+      "exit_criteria": [
+        "Targeted batch-2 pytest modules pass locally",
+        "Full tests/integration/hf_hub suite passes locally",
+        "Overlapping download smoke scripts still pass",
+        "Rust tests pass if server code changes",
+        "GitHub Actions are green for the batch PR"
+      ]
+    },
+    {
+      "id": "batch3",
+      "title": "Private repo and auth correctness",
+      "status": "planned",
+      "scope": [
+        "Private/public enforcement",
+        "Token and no-token behavior",
+        "Correct 401, 403, and 404 semantics for protected resources"
+      ],
+      "upstream_modules": [
+        "tests/test_hf_api.py",
+        "tests/test_file_download.py"
+      ],
+      "local_test_files": [
+        "tests/integration/hf_hub/test_auth_batch3.py",
+        "tests/integration/hf_hub/test_repo_visibility_batch3.py"
+      ],
+      "server_surfaces": [
+        "crates/hub-api/src/routes/repos.rs",
+        "crates/hub-api/src/routes/files.rs",
+        "auth-adjacent route/query files"
+      ],
+      "issue": null,
+      "pr": null,
+      "depends_on": ["batch2"],
+      "exit_criteria": [
+        "Targeted auth and visibility tests pass locally",
+        "Full tests/integration/hf_hub suite passes locally",
+        "Rust tests pass if server code changes",
+        "GitHub Actions are green for the batch PR"
+      ]
+    },
+    {
+      "id": "batch4",
+      "title": "Revision and history semantics",
+      "status": "planned",
+      "scope": [
+        "Commit SHA and revision correctness",
+        "Listing and lookup semantics beyond always returning latest head"
+      ],
+      "upstream_modules": [
+        "tests/test_hf_api.py",
+        "tests/test_snapshot_download.py"
+      ],
+      "local_test_files": [
+        "tests/integration/hf_hub/test_revisions_batch4.py"
+      ],
+      "server_surfaces": [
+        "crates/hub-api/src/routes/repos.rs",
+        "commit and file lookup paths involved in revision resolution"
+      ],
+      "issue": null,
+      "pr": null,
+      "depends_on": ["batch3"],
+      "exit_criteria": [
+        "Targeted revision tests pass locally",
+        "Full tests/integration/hf_hub suite passes locally",
+        "Rust tests pass if server code changes",
+        "GitHub Actions are green for the batch PR"
+      ]
+    },
+    {
+      "id": "batch5",
+      "title": "Branches, tags, and PR flows",
+      "status": "planned",
+      "scope": [
+        "Branch-like refs",
+        "Tag semantics",
+        "PR-oriented Hub workflows if still desired after batch 4"
+      ],
+      "upstream_modules": [
+        "tests/test_hf_api.py",
+        "tests/test_cli_discussions.py"
+      ],
+      "local_test_files": [
+        "tests/integration/hf_hub/test_branches_batch5.py",
+        "tests/integration/hf_hub/test_tags_batch5.py",
+        "tests/integration/hf_hub/test_pull_requests_batch5.py"
+      ],
+      "server_surfaces": [
+        "crates/hub-api/src/routes/repos.rs",
+        "branch/tag/PR route and model work"
+      ],
+      "issue": null,
+      "pr": null,
+      "depends_on": ["batch4"],
+      "exit_criteria": [
+        "Targeted branch, tag, and PR tests pass locally",
+        "Full tests/integration/hf_hub suite passes locally",
+        "Rust tests pass if server code changes",
+        "GitHub Actions are green for the batch PR"
+      ]
+    },
+    {
+      "id": "batch6",
+      "title": "LFS/Xet-heavy and filesystem-heavy paths",
+      "status": "planned",
+      "scope": [
+        "Deeper HfFileSystem compatibility for supported repository behavior",
+        "Xet-specific upload and download compatibility",
+        "Selected README or model-card push flows where they map to supported repo semantics"
+      ],
+      "upstream_modules": [
+        "tests/test_hf_file_system.py",
+        "tests/test_xet_upload.py",
+        "tests/test_xet_download.py",
+        "tests/test_repocard.py"
+      ],
+      "local_test_files": [
+        "tests/integration/hf_hub/test_hf_filesystem_batch6.py",
+        "tests/integration/hf_hub/test_xet_upload_batch6.py",
+        "tests/integration/hf_hub/test_xet_download_batch6.py",
+        "tests/integration/hf_hub/test_repocard_batch6.py"
+      ],
+      "server_surfaces": [
+        "repository file read and write paths",
+        "LFS and Xet transfer surfaces",
+        "Hub API glue for filesystem-style access"
+      ],
+      "issue": null,
+      "pr": null,
+      "depends_on": ["batch5"],
+      "exit_criteria": [
+        "Targeted batch-6 tests pass locally",
+        "Full tests/integration/hf_hub suite passes locally",
+        "Relevant smoke scripts still pass when overlapping behavior changes",
+        "Rust tests pass if server code changes",
+        "GitHub Actions are green for the batch PR"
+      ]
+    }
+  ]
+}
