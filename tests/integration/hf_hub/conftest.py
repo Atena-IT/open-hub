@@ -1,12 +1,6 @@
 import os
 import uuid
 
-os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
-
-import pytest
-import huggingface_hub.file_download as hf_file_download
-from huggingface_hub import HfApi
-
 from helpers import (
     DEFAULT_ENDPOINT,
     DEFAULT_PASSWORD,
@@ -16,6 +10,13 @@ from helpers import (
     register_or_login,
     wait_for_server,
 )
+
+os.environ.setdefault("HF_ENDPOINT", DEFAULT_ENDPOINT)
+os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+
+import pytest
+import huggingface_hub.file_download as hf_file_download
+from huggingface_hub import HfApi
 
 if os.name == "nt":
     hf_file_download.are_symlinks_supported = lambda cache_dir=None: False
