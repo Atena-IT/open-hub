@@ -244,7 +244,10 @@
         "number": 32,
         "url": "https://github.com/Atena-IT/xet-backend/issues/32"
       },
-      "pr": null,
+      "pr": {
+        "number": 33,
+        "url": "https://github.com/Atena-IT/xet-backend/pull/33"
+      },
       "depends_on": ["batch5"],
       "exit_criteria": [
         "Targeted batch-6 tests pass locally",

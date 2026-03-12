@@ -29,7 +29,7 @@ It distills the raw upstream test analysis from [issue #11](https://github.com/A
 | Batch 3 | done | Private repo enforcement, token/no-token behavior, and correct 401/403/404 semantics for protected resources. | `tests/test_hf_api.py`, `tests/test_file_download.py` | [#26](https://github.com/Atena-IT/xet-backend/issues/26) | [#27](https://github.com/Atena-IT/xet-backend/pull/27) |
 | Batch 4 | done | Revision and history semantics, including commit SHA handling and non-HEAD lookup behavior. | `tests/test_hf_api.py`, `tests/test_snapshot_download.py` | [#28](https://github.com/Atena-IT/xet-backend/issues/28) | [#29](https://github.com/Atena-IT/xet-backend/pull/29) |
 | Batch 5 | done | Lightweight named refs for branches and tags, plus revision-aware reads through those refs when they resolve to `main` or current head. | `tests/test_hf_api.py` | [#30](https://github.com/Atena-IT/xet-backend/issues/30) | [#31](https://github.com/Atena-IT/xet-backend/pull/31) |
-| Batch 6 | in_progress | Basic `HfFileSystem` compatibility, README/RepoCard flows, and Xet/LFS compatibility headers and negotiation that fit the current storage model. | `tests/test_hf_file_system.py`, `tests/test_xet_upload.py`, `tests/test_xet_download.py`, `tests/test_repocard.py` | [#32](https://github.com/Atena-IT/xet-backend/issues/32) | Pending draft PR |
+| Batch 6 | in_progress | Basic `HfFileSystem` compatibility, README/RepoCard flows, and Xet/LFS compatibility headers and negotiation that fit the current storage model. | `tests/test_hf_file_system.py`, `tests/test_xet_upload.py`, `tests/test_xet_download.py`, `tests/test_repocard.py` | [#32](https://github.com/Atena-IT/xet-backend/issues/32) | [#33](https://github.com/Atena-IT/xet-backend/pull/33) |
 
 ## Batch details
 
@@ -164,7 +164,7 @@ It distills the raw upstream test analysis from [issue #11](https://github.com/A
 
 **Status:** `in_progress`
 - Issue: [#32](https://github.com/Atena-IT/xet-backend/issues/32)
-- PR: Pending draft PR
+- PR: [#33](https://github.com/Atena-IT/xet-backend/pull/33)
 
 **Target**
 - basic `HfFileSystem` compatibility that maps to current repo read/write semantics
