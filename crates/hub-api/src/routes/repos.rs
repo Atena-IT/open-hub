@@ -299,6 +299,7 @@ pub struct DeleteRepoRequest {
     #[serde(rename = "type")]
     pub repo_type: Option<String>,
     pub name: Option<String>,
+    pub organization: Option<String>,
 }
 
 pub async fn delete_repo(
@@ -310,9 +311,17 @@ pub async fn delete_repo(
         .ok_or_else(|| AppError::Unauthorized("missing bearer token".into()))?;
     let user_id = auth::resolve_bearer_token(&state.pool, token).await?;
 
-    let full_name = req
+    let name = req
         .name
         .ok_or_else(|| AppError::BadRequest("name is required".into()))?;
+
+    let full_name = if name.contains('/') {
+        name
+    } else if let Some(organization) = req.organization {
+        format!("{}/{}", organization, name)
+    } else {
+        name
+    };
 
     let repo = db_layer::queries::repositories::find_repo_by_full_name(&state.pool, &full_name)
         .await

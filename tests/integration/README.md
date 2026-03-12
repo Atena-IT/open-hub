@@ -18,14 +18,28 @@ docker compose up -d --build --wait
 
 ## Running the Tests
 
-All tests are written as **self-contained Python scripts** using PEP 723 inline metadata. This means you do NOT need to manually manage virtual environments or pip installs. We highly recommend using [`uv`](https://github.com/astral-sh/uv) to run them.
+Use [`uv`](https://github.com/astral-sh/uv) for all Python integration coverage.
+
+### Script-based smoke tests
+
+The original smoke tests remain self-contained Python scripts using PEP 723 inline metadata.
 
 ```bash
-# Run a specific integration test using uv (it will auto-install dependencies)
-uv run integration/cdc_csv_demo.py
+HF_ENDPOINT=http://localhost:8080 uv run tests/integration/roundtrip.py
+HF_ENDPOINT=http://localhost:8080 uv run tests/integration/test_downloads.py
+HF_ENDPOINT=http://localhost:8080 uv run tests/integration/integration_create_commit.py
+```
 
-# Or run the basic roundtrip
-uv run integration/roundtrip.py
+### Pytest-based `hf_hub` compatibility slice
+
+Batch 1 of the upstream-derived compatibility suite lives under `tests/integration/hf_hub/`.
+These tests reuse the same bootstrap flow as the smoke scripts but run under pytest for better isolation and selective execution.
+
+```bash
+HF_ENDPOINT=http://localhost:8080 uv run --with pytest --with huggingface_hub --with requests pytest tests/integration/hf_hub/test_hf_api_batch1.py -q
+HF_ENDPOINT=http://localhost:8080 uv run --with pytest --with huggingface_hub --with requests pytest tests/integration/hf_hub/test_snapshot_download_batch1.py -q
+HF_ENDPOINT=http://localhost:8080 uv run --with pytest --with huggingface_hub --with requests pytest tests/integration/hf_hub/test_file_download_batch1.py -q
+HF_ENDPOINT=http://localhost:8080 uv run --with pytest --with huggingface_hub --with requests pytest tests/integration/hf_hub -q
 ```
 
 ## Test Categories
