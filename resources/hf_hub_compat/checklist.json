@@ -163,7 +163,10 @@
         "number": 28,
         "url": "https://github.com/Atena-IT/xet-backend/issues/28"
       },
-      "pr": null,
+      "pr": {
+        "number": 29,
+        "url": "https://github.com/Atena-IT/xet-backend/pull/29"
+      },
       "depends_on": ["batch3"],
       "exit_criteria": [
         "Targeted revision tests pass locally",
