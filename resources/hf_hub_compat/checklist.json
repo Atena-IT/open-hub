@@ -202,7 +202,10 @@
         "number": 30,
         "url": "https://github.com/Atena-IT/xet-backend/issues/30"
       },
-      "pr": null,
+      "pr": {
+        "number": 31,
+        "url": "https://github.com/Atena-IT/xet-backend/pull/31"
+      },
       "depends_on": ["batch4"],
       "exit_criteria": [
         "Targeted batch-5 named-ref tests pass locally",
