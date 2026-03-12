@@ -25,7 +25,7 @@ It distills the raw upstream test analysis from [issue #11](https://github.com/A
 | Batch | Status | Scope summary | Upstream modules | Issue | PR |
 | --- | --- | --- | --- | --- | --- |
 | Batch 1 | done | Core `HfApi` CRUD, basic `hf_hub_download`, metadata/cache basics, and core `snapshot_download` flows with pattern filters. | `tests/test_hf_api.py`, `tests/test_file_download.py`, `tests/test_snapshot_download.py` | [#17](https://github.com/Atena-IT/xet-backend/issues/17) | [#23](https://github.com/Atena-IT/xet-backend/pull/23) |
-| Batch 2 | planned | Deeper download and cache semantics for `hf_hub_download` and `snapshot_download`, including cache reuse and local-dir/cache edge cases that fit the current architecture. | `tests/test_file_download.py`, `tests/test_snapshot_download.py`, `tests/test_cache_layout.py`, `tests/test_utils_cache.py` | TBD | TBD |
+| Batch 2 | in_progress | Deeper download and cache semantics for `hf_hub_download` and `snapshot_download`, including cache reuse and local-dir/cache edge cases that fit the current architecture. | `tests/test_file_download.py`, `tests/test_snapshot_download.py`, `tests/test_cache_layout.py`, `tests/test_utils_cache.py` | [#24](https://github.com/Atena-IT/xet-backend/issues/24) | [#25](https://github.com/Atena-IT/xet-backend/pull/25) |
 | Batch 3 | planned | Private repo enforcement, token/no-token behavior, and correct 401/403/404 semantics for protected resources. | `tests/test_hf_api.py`, `tests/test_file_download.py` | TBD | TBD |
 | Batch 4 | planned | Revision and history semantics, including commit SHA handling and non-HEAD lookup behavior. | `tests/test_hf_api.py`, `tests/test_snapshot_download.py` | TBD | TBD |
 | Batch 5 | planned | Branch, tag, and PR-oriented Hub workflows, only if still desired after batch 4. | `tests/test_hf_api.py`, `tests/test_cli_discussions.py` | TBD | TBD |
@@ -62,7 +62,9 @@ It distills the raw upstream test analysis from [issue #11](https://github.com/A
 
 ### Batch 2 — deeper download and cache semantics
 
-**Status:** `planned`
+**Status:** `in_progress`
+- Issue: [#24](https://github.com/Atena-IT/xet-backend/issues/24)
+- PR: [#25](https://github.com/Atena-IT/xet-backend/pull/25)
 
 **Target**
 - extend `hf_hub_download` and `snapshot_download` coverage beyond batch-1 happy paths

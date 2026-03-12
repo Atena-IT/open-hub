@@ -3,6 +3,7 @@ import os
 os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
 
 import pytest
+import huggingface_hub.file_download as hf_file_download
 from huggingface_hub import HfApi
 
 from helpers import (
@@ -14,6 +15,10 @@ from helpers import (
     register_or_login,
     wait_for_server,
 )
+
+if os.name == "nt":
+    hf_file_download.are_symlinks_supported = lambda cache_dir=None: False
+    hf_file_download._are_symlinks_supported_in_dir.clear()
 
 
 @pytest.fixture(scope="session")
