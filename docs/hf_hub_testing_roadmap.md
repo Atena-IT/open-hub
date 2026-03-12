@@ -27,8 +27,8 @@ It distills the raw upstream test analysis from [issue #11](https://github.com/A
 | Batch 1 | done | Core `HfApi` CRUD, basic `hf_hub_download`, metadata/cache basics, and core `snapshot_download` flows with pattern filters. | `tests/test_hf_api.py`, `tests/test_file_download.py`, `tests/test_snapshot_download.py` | [#17](https://github.com/Atena-IT/xet-backend/issues/17) | [#23](https://github.com/Atena-IT/xet-backend/pull/23) |
 | Batch 2 | done | Deeper download and cache semantics for `hf_hub_download` and `snapshot_download`, including cache reuse and local-dir/cache edge cases that fit the current architecture. | `tests/test_file_download.py`, `tests/test_snapshot_download.py`, `tests/test_cache_layout.py`, `tests/test_utils_cache.py` | [#24](https://github.com/Atena-IT/xet-backend/issues/24) | [#25](https://github.com/Atena-IT/xet-backend/pull/25) |
 | Batch 3 | done | Private repo enforcement, token/no-token behavior, and correct 401/403/404 semantics for protected resources. | `tests/test_hf_api.py`, `tests/test_file_download.py` | [#26](https://github.com/Atena-IT/xet-backend/issues/26) | [#27](https://github.com/Atena-IT/xet-backend/pull/27) |
-| Batch 4 | in_progress | Revision and history semantics, including commit SHA handling and non-HEAD lookup behavior. | `tests/test_hf_api.py`, `tests/test_snapshot_download.py` | [#28](https://github.com/Atena-IT/xet-backend/issues/28) | [#29](https://github.com/Atena-IT/xet-backend/pull/29) |
-| Batch 5 | planned | Branch, tag, and PR-oriented Hub workflows, only if still desired after batch 4. | `tests/test_hf_api.py`, `tests/test_cli_discussions.py` | TBD | TBD |
+| Batch 4 | done | Revision and history semantics, including commit SHA handling and non-HEAD lookup behavior. | `tests/test_hf_api.py`, `tests/test_snapshot_download.py` | [#28](https://github.com/Atena-IT/xet-backend/issues/28) | [#29](https://github.com/Atena-IT/xet-backend/pull/29) |
+| Batch 5 | in_progress | Lightweight named refs for branches and tags, plus revision-aware reads through those refs when they resolve to `main` or current head. | `tests/test_hf_api.py` | [#30](https://github.com/Atena-IT/xet-backend/issues/30) | [#31](https://github.com/Atena-IT/xet-backend/pull/31) |
 | Batch 6 | planned | LFS/Xet-heavy and filesystem-heavy compatibility where it directly exercises supported server behavior. | `tests/test_hf_file_system.py`, `tests/test_xet_upload.py`, `tests/test_xet_download.py`, `tests/test_repocard.py` | TBD | TBD |
 
 ## Batch details
@@ -112,7 +112,7 @@ It distills the raw upstream test analysis from [issue #11](https://github.com/A
 
 ### Batch 4 — revision and history semantics
 
-**Status:** `in_progress`
+**Status:** `done`
 - Issue: [#28](https://github.com/Atena-IT/xet-backend/issues/28)
 - PR: [#29](https://github.com/Atena-IT/xet-backend/pull/29)
 
@@ -133,24 +133,31 @@ It distills the raw upstream test analysis from [issue #11](https://github.com/A
 - full `tests/integration/hf_hub` passes locally
 - CI is green for the batch PR
 
-### Batch 5 — branches, tags, and PR flows
+### Batch 5 — named refs: branches and tags
 
-**Status:** `planned`
+**Status:** `in_progress`
+- Issue: [#30](https://github.com/Atena-IT/xet-backend/issues/30)
+- PR: [#31](https://github.com/Atena-IT/xet-backend/pull/31)
 
 **Target**
-- branch-like refs and PR-oriented Hub workflows only if they remain in scope after batch 4
-- keep this batch separate because it is the first point where compatibility would require a wider git-like collaboration model
+- add lightweight named refs for branches and tags via `list_repo_refs`, `create_branch`, `delete_branch`, `create_tag`, and `delete_tag`
+- allow branch/tag names as read revisions when they resolve to `main` or the current head commit in the current storage model
+- keep pull-request refs and historical snapshots out of scope for this batch
 
 **Likely local files**
-- new `tests/integration/hf_hub/test_*_batch5.py` modules
+- `tests/integration/hf_hub/test_refs_batch5.py`
 
 **Likely server surfaces**
 - `crates/hub-api/src/routes/repos.rs`
-- branch/tag/PR route and model work as required
+- `crates/hub-api/src/routes/files.rs`
+- `crates/hub-api/src/auth.rs`
+- `crates/db-layer/src/queries/repo_refs.rs`
+- `crates/db-layer/migrations/003_repo_refs.sql`
 
 **Exit criteria**
-- targeted branch/tag/PR tests pass locally
+- targeted batch-5 named-ref tests pass locally
 - full `tests/integration/hf_hub` passes locally
+- Rust tests pass if server code changes
 - CI is green for the batch PR
 
 ### Batch 6 — LFS/Xet-heavy and filesystem-heavy paths

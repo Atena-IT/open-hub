@@ -52,6 +52,42 @@ pub fn hub_api_router(state: HubState) -> Router {
             "/api/spaces/{owner}/{repo}/revision/{revision}",
             get(repos::repo_info_revision),
         )
+        .route(
+            "/api/models/{owner}/{repo}/refs",
+            get(repos::list_repo_refs),
+        )
+        .route(
+            "/api/models/{owner}/{repo}/branch/{branch}",
+            post(repos::create_branch).delete(repos::delete_branch),
+        )
+        .route(
+            "/api/models/{owner}/{repo}/tag/{value}",
+            post(repos::create_tag).delete(repos::delete_tag),
+        )
+        .route(
+            "/api/datasets/{owner}/{repo}/refs",
+            get(repos::list_repo_refs),
+        )
+        .route(
+            "/api/datasets/{owner}/{repo}/branch/{branch}",
+            post(repos::create_branch).delete(repos::delete_branch),
+        )
+        .route(
+            "/api/datasets/{owner}/{repo}/tag/{value}",
+            post(repos::create_tag).delete(repos::delete_tag),
+        )
+        .route(
+            "/api/spaces/{owner}/{repo}/refs",
+            get(repos::list_repo_refs),
+        )
+        .route(
+            "/api/spaces/{owner}/{repo}/branch/{branch}",
+            post(repos::create_branch).delete(repos::delete_branch),
+        )
+        .route(
+            "/api/spaces/{owner}/{repo}/tag/{value}",
+            post(repos::create_tag).delete(repos::delete_tag),
+        )
         // Tree listing
         .route(
             "/api/models/{owner}/{repo}/tree/{revision}",

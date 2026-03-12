@@ -65,6 +65,36 @@ pub struct ValidateYamlResponse {
     pub errors: Vec<serde_json::Value>,
 }
 
+#[derive(Serialize)]
+pub struct GitRefsResponse {
+    pub branches: Vec<GitRefInfoResponse>,
+    pub converts: Vec<GitRefInfoResponse>,
+    pub tags: Vec<GitRefInfoResponse>,
+    #[serde(rename = "pullRequests")]
+    pub pull_requests: Vec<GitRefInfoResponse>,
+}
+
+#[derive(Serialize)]
+pub struct GitRefInfoResponse {
+    pub name: String,
+    #[serde(rename = "ref")]
+    pub git_ref: String,
+    #[serde(rename = "targetCommit")]
+    pub target_commit: String,
+}
+
+#[derive(Deserialize, Default)]
+pub struct CreateBranchRequest {
+    #[serde(rename = "startingPoint")]
+    pub starting_point: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct CreateTagRequest {
+    pub tag: Option<String>,
+    pub message: Option<String>,
+}
+
 pub async fn validate_yaml(
     Json(req): Json<ValidateYamlRequest>,
 ) -> Result<Json<ValidateYamlResponse>, AppError> {
@@ -153,6 +183,7 @@ pub async fn create_repo(
         &repo,
         vec![],
         &state.config.hub_base_url,
+        None,
     )))
 }
 
@@ -224,6 +255,7 @@ pub async fn repo_info(
         &repo_row,
         siblings,
         &state.config.hub_base_url,
+        None,
     )))
 }
 
@@ -239,7 +271,7 @@ pub async fn repo_info_revision(
         .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
     let requester_id = auth::resolve_optional_bearer_token(&state.pool, &headers).await?;
     auth::ensure_repo_read_access(&repo_row, &full_name, requester_id)?;
-    auth::ensure_supported_repo_revision(&repo_row, &revision)?;
+    let resolved_sha = auth::resolve_repo_revision(&state.pool, &repo_row, &revision).await?;
 
     let files = db_layer::queries::repo_files::list_files(&state.pool, repo_row.id, None)
         .await
@@ -265,7 +297,199 @@ pub async fn repo_info_revision(
         &repo_row,
         siblings,
         &state.config.hub_base_url,
+        Some(resolved_sha.as_str()),
     )))
+}
+
+pub async fn list_repo_refs(
+    State(state): State<HubState>,
+    headers: HeaderMap,
+    Path((owner, repo)): Path<(String, String)>,
+) -> Result<Json<GitRefsResponse>, AppError> {
+    let full_name = format!("{}/{}", owner, repo);
+    let repo_row = db_layer::queries::repositories::find_repo_by_full_name(&state.pool, &full_name)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
+    let requester_id = auth::resolve_optional_bearer_token(&state.pool, &headers).await?;
+    auth::ensure_repo_read_access(&repo_row, &full_name, requester_id)?;
+
+    let mut branches = Vec::new();
+    if let Some(head_sha) = &repo_row.head_sha {
+        branches.push(build_git_ref("main", "heads", head_sha));
+    }
+
+    let refs = db_layer::queries::repo_refs::list_refs(&state.pool, repo_row.id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let mut tags = Vec::new();
+
+    for repo_ref in refs {
+        match repo_ref.ref_type.as_str() {
+            "branch" => branches.push(build_git_ref(&repo_ref.name, "heads", &repo_ref.target_sha)),
+            "tag" => tags.push(build_git_ref(&repo_ref.name, "tags", &repo_ref.target_sha)),
+            _ => {}
+        }
+    }
+
+    Ok(Json(GitRefsResponse {
+        branches,
+        converts: vec![],
+        tags,
+        pull_requests: vec![],
+    }))
+}
+
+pub async fn create_branch(
+    State(state): State<HubState>,
+    headers: HeaderMap,
+    Path((owner, repo, branch)): Path<(String, String, String)>,
+    Json(req): Json<CreateBranchRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let token = auth::extract_bearer(&headers)
+        .ok_or_else(|| AppError::Unauthorized("missing bearer token".into()))?;
+    let user_id = auth::resolve_bearer_token(&state.pool, token).await?;
+
+    ensure_named_ref_name(&branch, "branch")?;
+
+    let full_name = format!("{}/{}", owner, repo);
+    let repo_row = db_layer::queries::repositories::find_repo_by_full_name(&state.pool, &full_name)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
+    auth::ensure_repo_write_access(&repo_row, user_id)?;
+
+    if branch == "main"
+        || db_layer::queries::repo_refs::find_ref_by_name(&state.pool, repo_row.id, &branch)
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?
+            .is_some()
+    {
+        return Err(AppError::Conflict(format!(
+            "branch '{}' already exists",
+            branch
+        )));
+    }
+
+    let starting_point = req.starting_point.as_deref().unwrap_or("main");
+    let target_sha = auth::resolve_repo_revision(&state.pool, &repo_row, starting_point).await?;
+
+    db_layer::queries::repo_refs::create_ref(
+        &state.pool,
+        repo_row.id,
+        &branch,
+        "branch",
+        &target_sha,
+    )
+    .await
+    .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    Ok(Json(serde_json::json!({
+        "name": branch,
+        "ref": format!("refs/heads/{}", branch),
+        "targetCommit": target_sha,
+    })))
+}
+
+pub async fn delete_branch(
+    State(state): State<HubState>,
+    headers: HeaderMap,
+    Path((owner, repo, branch)): Path<(String, String, String)>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let token = auth::extract_bearer(&headers)
+        .ok_or_else(|| AppError::Unauthorized("missing bearer token".into()))?;
+    let user_id = auth::resolve_bearer_token(&state.pool, token).await?;
+
+    let full_name = format!("{}/{}", owner, repo);
+    let repo_row = db_layer::queries::repositories::find_repo_by_full_name(&state.pool, &full_name)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
+    auth::ensure_repo_write_access(&repo_row, user_id)?;
+
+    if branch == "main" {
+        return Err(AppError::BadRequest("cannot delete main branch".into()));
+    }
+
+    let deleted =
+        db_layer::queries::repo_refs::delete_ref(&state.pool, repo_row.id, &branch, "branch")
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+    if !deleted {
+        return Err(AppError::NotFound(format!("branch '{}' not found", branch)));
+    }
+
+    Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+pub async fn create_tag(
+    State(state): State<HubState>,
+    headers: HeaderMap,
+    Path((owner, repo, revision)): Path<(String, String, String)>,
+    Json(req): Json<CreateTagRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let token = auth::extract_bearer(&headers)
+        .ok_or_else(|| AppError::Unauthorized("missing bearer token".into()))?;
+    let user_id = auth::resolve_bearer_token(&state.pool, token).await?;
+
+    let tag = req
+        .tag
+        .ok_or_else(|| AppError::BadRequest("tag is required".into()))?;
+    ensure_named_ref_name(&tag, "tag")?;
+
+    let full_name = format!("{}/{}", owner, repo);
+    let repo_row = db_layer::queries::repositories::find_repo_by_full_name(&state.pool, &full_name)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
+    auth::ensure_repo_write_access(&repo_row, user_id)?;
+
+    if tag == "main"
+        || db_layer::queries::repo_refs::find_ref_by_name(&state.pool, repo_row.id, &tag)
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?
+            .is_some()
+    {
+        return Err(AppError::Conflict(format!("tag '{}' already exists", tag)));
+    }
+
+    let target_sha = auth::resolve_repo_revision(&state.pool, &repo_row, &revision).await?;
+
+    db_layer::queries::repo_refs::create_ref(&state.pool, repo_row.id, &tag, "tag", &target_sha)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    Ok(Json(serde_json::json!({
+        "name": tag,
+        "ref": format!("refs/tags/{}", tag),
+        "targetCommit": target_sha,
+    })))
+}
+
+pub async fn delete_tag(
+    State(state): State<HubState>,
+    headers: HeaderMap,
+    Path((owner, repo, tag)): Path<(String, String, String)>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let token = auth::extract_bearer(&headers)
+        .ok_or_else(|| AppError::Unauthorized("missing bearer token".into()))?;
+    let user_id = auth::resolve_bearer_token(&state.pool, token).await?;
+
+    let full_name = format!("{}/{}", owner, repo);
+    let repo_row = db_layer::queries::repositories::find_repo_by_full_name(&state.pool, &full_name)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
+    auth::ensure_repo_write_access(&repo_row, user_id)?;
+
+    let deleted = db_layer::queries::repo_refs::delete_ref(&state.pool, repo_row.id, &tag, "tag")
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    if !deleted {
+        return Err(AppError::NotFound(format!("revision '{}' not found", tag)));
+    }
+
+    Ok(Json(serde_json::json!({ "ok": true })))
 }
 
 pub async fn list_models(
@@ -280,7 +504,7 @@ pub async fn list_models(
     let responses = repos
         .into_iter()
         .filter(|repo| !repo.private || requester_id == Some(repo.owner_id))
-        .map(|repo| repo_to_response(&repo, vec![], &state.config.hub_base_url))
+        .map(|repo| repo_to_response(&repo, vec![], &state.config.hub_base_url, None))
         .collect();
 
     Ok(Json(responses))
@@ -298,7 +522,7 @@ pub async fn list_datasets(
     let responses = repos
         .into_iter()
         .filter(|repo| !repo.private || requester_id == Some(repo.owner_id))
-        .map(|repo| repo_to_response(&repo, vec![], &state.config.hub_base_url))
+        .map(|repo| repo_to_response(&repo, vec![], &state.config.hub_base_url, None))
         .collect();
 
     Ok(Json(responses))
@@ -351,13 +575,17 @@ fn repo_to_response(
     repo: &db_layer::queries::repositories::RepoRow,
     siblings: Vec<SiblingEntry>,
     hub_base_url: &str,
+    sha: Option<&str>,
 ) -> RepoInfoResponse {
     RepoInfoResponse {
         _id: repo.id.to_string(),
         id: repo.id.to_string(),
         id_str: repo.id.to_string(),
         model_id: repo.full_name.clone(),
-        sha: repo.head_sha.clone().or(Some("main".to_string())),
+        sha: sha
+            .map(|value| value.to_string())
+            .or_else(|| repo.head_sha.clone())
+            .or(Some("main".to_string())),
         url: format!("{}/{}", hub_base_url, repo.full_name),
         private: repo.private,
         disabled: false,
@@ -369,4 +597,19 @@ fn repo_to_response(
         created_at: repo.created_at.to_rfc3339().replace("+00:00", "Z"),
         siblings,
     }
+}
+
+fn build_git_ref(name: &str, namespace: &str, target_sha: &str) -> GitRefInfoResponse {
+    GitRefInfoResponse {
+        name: name.to_string(),
+        git_ref: format!("refs/{}/{}", namespace, name),
+        target_commit: target_sha.to_string(),
+    }
+}
+
+fn ensure_named_ref_name(name: &str, ref_type: &str) -> Result<(), AppError> {
+    if name.is_empty() || name.starts_with("refs/") || name.contains("..") {
+        return Err(AppError::BadRequest(format!("invalid {} name", ref_type)));
+    }
+    Ok(())
 }

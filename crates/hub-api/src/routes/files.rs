@@ -36,7 +36,7 @@ pub async fn tree_list(
         .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
     let requester_id = auth::resolve_optional_bearer_token(&state.pool, &headers).await?;
     auth::ensure_repo_read_access(&repo_row, &full_name, requester_id)?;
-    auth::ensure_supported_repo_revision(&repo_row, revision)?;
+    let _resolved_revision = auth::resolve_repo_revision(&state.pool, &repo_row, revision).await?;
 
     let files = db_layer::queries::repo_files::list_files(
         &state.pool,
@@ -401,7 +401,7 @@ pub async fn resolve_file(
         .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
     let requester_id = auth::resolve_optional_bearer_token(&state.pool, &headers).await?;
     auth::ensure_repo_read_access(&repo_row, &full_name, requester_id)?;
-    auth::ensure_supported_repo_revision(&repo_row, revision)?;
+    let resolved_revision = auth::resolve_repo_revision(&state.pool, &repo_row, revision).await?;
 
     let file = db_layer::queries::repo_files::find_file(&state.pool, repo_row.id, path)
         .await
@@ -409,7 +409,7 @@ pub async fn resolve_file(
         .ok_or_else(|| AppError::NotFound(format!("file '{}' not found", path)))?;
 
     let etag = file.sha256.as_deref().unwrap_or("");
-    let commit_sha = repo_row.head_sha.as_deref().unwrap_or("main");
+    let commit_sha = resolved_revision.as_str();
 
     if file.is_lfs {
         let oid = file.lfs_oid.as_deref().unwrap_or("");
