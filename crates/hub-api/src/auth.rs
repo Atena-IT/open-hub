@@ -113,10 +113,7 @@ pub fn ensure_repo_write_access(repo: &RepoRow, requester_id: Uuid) -> Result<()
     }
 }
 
-pub fn ensure_supported_repo_revision(
-    repo: &RepoRow,
-    revision: &str,
-) -> Result<(), AppError> {
+pub fn ensure_supported_repo_revision(repo: &RepoRow, revision: &str) -> Result<(), AppError> {
     if revision == "main" || repo.head_sha.as_deref() == Some(revision) {
         Ok(())
     } else {
