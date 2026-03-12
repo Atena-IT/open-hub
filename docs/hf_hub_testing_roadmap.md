@@ -28,8 +28,8 @@ It distills the raw upstream test analysis from [issue #11](https://github.com/A
 | Batch 2 | done | Deeper download and cache semantics for `hf_hub_download` and `snapshot_download`, including cache reuse and local-dir/cache edge cases that fit the current architecture. | `tests/test_file_download.py`, `tests/test_snapshot_download.py`, `tests/test_cache_layout.py`, `tests/test_utils_cache.py` | [#24](https://github.com/Atena-IT/xet-backend/issues/24) | [#25](https://github.com/Atena-IT/xet-backend/pull/25) |
 | Batch 3 | done | Private repo enforcement, token/no-token behavior, and correct 401/403/404 semantics for protected resources. | `tests/test_hf_api.py`, `tests/test_file_download.py` | [#26](https://github.com/Atena-IT/xet-backend/issues/26) | [#27](https://github.com/Atena-IT/xet-backend/pull/27) |
 | Batch 4 | done | Revision and history semantics, including commit SHA handling and non-HEAD lookup behavior. | `tests/test_hf_api.py`, `tests/test_snapshot_download.py` | [#28](https://github.com/Atena-IT/xet-backend/issues/28) | [#29](https://github.com/Atena-IT/xet-backend/pull/29) |
-| Batch 5 | in_progress | Lightweight named refs for branches and tags, plus revision-aware reads through those refs when they resolve to `main` or current head. | `tests/test_hf_api.py` | [#30](https://github.com/Atena-IT/xet-backend/issues/30) | [#31](https://github.com/Atena-IT/xet-backend/pull/31) |
-| Batch 6 | planned | LFS/Xet-heavy and filesystem-heavy compatibility where it directly exercises supported server behavior. | `tests/test_hf_file_system.py`, `tests/test_xet_upload.py`, `tests/test_xet_download.py`, `tests/test_repocard.py` | TBD | TBD |
+| Batch 5 | done | Lightweight named refs for branches and tags, plus revision-aware reads through those refs when they resolve to `main` or current head. | `tests/test_hf_api.py` | [#30](https://github.com/Atena-IT/xet-backend/issues/30) | [#31](https://github.com/Atena-IT/xet-backend/pull/31) |
+| Batch 6 | in_progress | Basic `HfFileSystem` compatibility, README/RepoCard flows, and Xet/LFS compatibility headers and negotiation that fit the current storage model. | `tests/test_hf_file_system.py`, `tests/test_xet_upload.py`, `tests/test_xet_download.py`, `tests/test_repocard.py` | [#32](https://github.com/Atena-IT/xet-backend/issues/32) | Pending draft PR |
 
 ## Batch details
 
@@ -135,7 +135,7 @@ It distills the raw upstream test analysis from [issue #11](https://github.com/A
 
 ### Batch 5 — named refs: branches and tags
 
-**Status:** `in_progress`
+**Status:** `done`
 - Issue: [#30](https://github.com/Atena-IT/xet-backend/issues/30)
 - PR: [#31](https://github.com/Atena-IT/xet-backend/pull/31)
 
@@ -160,27 +160,34 @@ It distills the raw upstream test analysis from [issue #11](https://github.com/A
 - Rust tests pass if server code changes
 - CI is green for the batch PR
 
-### Batch 6 — LFS/Xet-heavy and filesystem-heavy paths
+### Batch 6 — filesystem, README, and Xet compatibility
 
-**Status:** `planned`
+**Status:** `in_progress`
+- Issue: [#32](https://github.com/Atena-IT/xet-backend/issues/32)
+- PR: Pending draft PR
 
 **Target**
-- deeper `HfFileSystem` compatibility where it directly exercises supported repository behavior
-- Xet-specific upload/download compatibility that aligns with this backend’s storage model
-- selected README/model-card push flows only where they map to supported repo semantics
+- basic `HfFileSystem` compatibility that maps to current repo read/write semantics
+- simple RepoCard / README flows that operate through the existing file APIs
+- Xet/LFS protocol awareness: token issuance, access control, transfer negotiation, and compatibility headers
 
 **Likely local files**
-- new `tests/integration/hf_hub/test_*_batch6.py` modules
+- `tests/integration/hf_hub/test_hf_filesystem_batch6.py`
+- `tests/integration/hf_hub/test_repocard_batch6.py`
+- `tests/integration/hf_hub/test_xet_download_batch6.py`
+- `tests/integration/hf_hub/test_xet_upload_batch6.py`
 
 **Likely server surfaces**
-- repository file read/write paths
-- LFS/Xet transfer surfaces
-- any required Hub API glue for filesystem-style access
+- `crates/hub-api/src/routes/files.rs`
+- `crates/hub-api/src/routes/xet_auth.rs`
+- `crates/hub-api/src/routes/lfs.rs`
+- `crates/hub-api/src/routes/repos.rs` only if tests prove a small response-shape mismatch
 
 **Exit criteria**
 - targeted batch-6 tests pass locally
 - full `tests/integration/hf_hub` passes locally
 - relevant legacy smoke scripts still pass when overlapping behavior changes
+- Rust tests pass if server code changes
 - CI is green for the batch PR
 
 ## Explicit non-goals

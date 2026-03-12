@@ -7,7 +7,7 @@
   },
   "strategy": {
     "tracking_model": "single_active_batch",
-    "current_pointer": "batch5",
+    "current_pointer": "batch6",
     "status_values": ["done", "in_progress", "planned", "blocked", "out_of_scope"]
   },
   "non_goals": [
@@ -178,7 +178,7 @@
     {
       "id": "batch5",
       "title": "Named refs: branches and tags",
-      "status": "in_progress",
+      "status": "done",
       "scope": [
         "List branches and tags through list_repo_refs",
         "Create and delete named branch and tag refs",
@@ -216,12 +216,12 @@
     },
     {
       "id": "batch6",
-      "title": "LFS/Xet-heavy and filesystem-heavy paths",
-      "status": "planned",
+      "title": "Filesystem, README, and Xet compatibility",
+      "status": "in_progress",
       "scope": [
-        "Deeper HfFileSystem compatibility for supported repository behavior",
-        "Xet-specific upload and download compatibility",
-        "Selected README or model-card push flows where they map to supported repo semantics"
+        "Basic HfFileSystem compatibility that maps to current repo read and write semantics",
+        "Simple RepoCard and README flows through the existing file APIs",
+        "Xet and LFS token issuance, access control, transfer negotiation, and compatibility headers"
       ],
       "upstream_modules": [
         "tests/test_hf_file_system.py",
@@ -240,7 +240,10 @@
         "LFS and Xet transfer surfaces",
         "Hub API glue for filesystem-style access"
       ],
-      "issue": null,
+      "issue": {
+        "number": 32,
+        "url": "https://github.com/Atena-IT/xet-backend/issues/32"
+      },
       "pr": null,
       "depends_on": ["batch5"],
       "exit_criteria": [
