@@ -7,7 +7,7 @@
   },
   "strategy": {
     "tracking_model": "single_active_batch",
-    "current_pointer": "batch4",
+    "current_pointer": "batch5",
     "status_values": ["done", "in_progress", "planned", "blocked", "out_of_scope"]
   },
   "non_goals": [
@@ -142,7 +142,7 @@
     {
       "id": "batch4",
       "title": "Revision and history semantics",
-      "status": "in_progress",
+      "status": "done",
       "scope": [
         "Commit SHA and revision correctness",
         "Accept main and current head SHA as valid read revisions",
@@ -177,31 +177,35 @@
     },
     {
       "id": "batch5",
-      "title": "Branches, tags, and PR flows",
-      "status": "planned",
+      "title": "Named refs: branches and tags",
+      "status": "in_progress",
       "scope": [
-        "Branch-like refs",
-        "Tag semantics",
-        "PR-oriented Hub workflows if still desired after batch 4"
+        "List branches and tags through list_repo_refs",
+        "Create and delete named branch and tag refs",
+        "Allow branch and tag names as read revisions when they resolve to main or the current head commit",
+        "Keep pull-request refs and historical snapshots out of scope for this batch"
       ],
       "upstream_modules": [
-        "tests/test_hf_api.py",
-        "tests/test_cli_discussions.py"
+        "tests/test_hf_api.py"
       ],
       "local_test_files": [
-        "tests/integration/hf_hub/test_branches_batch5.py",
-        "tests/integration/hf_hub/test_tags_batch5.py",
-        "tests/integration/hf_hub/test_pull_requests_batch5.py"
+        "tests/integration/hf_hub/test_refs_batch5.py"
       ],
       "server_surfaces": [
         "crates/hub-api/src/routes/repos.rs",
-        "branch/tag/PR route and model work"
+        "crates/hub-api/src/routes/files.rs",
+        "crates/hub-api/src/auth.rs",
+        "crates/db-layer/src/queries/repo_refs.rs",
+        "crates/db-layer/migrations/003_repo_refs.sql"
       ],
-      "issue": null,
+      "issue": {
+        "number": 30,
+        "url": "https://github.com/Atena-IT/xet-backend/issues/30"
+      },
       "pr": null,
       "depends_on": ["batch4"],
       "exit_criteria": [
-        "Targeted branch, tag, and PR tests pass locally",
+        "Targeted batch-5 named-ref tests pass locally",
         "Full tests/integration/hf_hub suite passes locally",
         "Rust tests pass if server code changes",
         "GitHub Actions are green for the batch PR"

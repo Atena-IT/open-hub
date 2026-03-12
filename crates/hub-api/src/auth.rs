@@ -113,13 +113,32 @@ pub fn ensure_repo_write_access(repo: &RepoRow, requester_id: Uuid) -> Result<()
     }
 }
 
-pub fn ensure_supported_repo_revision(repo: &RepoRow, revision: &str) -> Result<(), AppError> {
-    if revision == "main" || repo.head_sha.as_deref() == Some(revision) {
-        Ok(())
-    } else {
-        Err(AppError::NotFound(format!(
-            "revision '{}' not found",
-            revision
-        )))
+pub async fn resolve_repo_revision(
+    pool: &PgPool,
+    repo: &RepoRow,
+    revision: &str,
+) -> Result<String, AppError> {
+    if revision == "main" {
+        return repo
+            .head_sha
+            .clone()
+            .ok_or_else(|| AppError::NotFound(format!("revision '{}' not found", revision)));
     }
+
+    if repo.head_sha.as_deref() == Some(revision) {
+        return Ok(revision.to_string());
+    }
+
+    let repo_ref = db_layer::queries::repo_refs::find_ref_by_name(pool, repo.id, revision)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    if let Some(repo_ref) = repo_ref {
+        return Ok(repo_ref.target_sha);
+    }
+
+    Err(AppError::NotFound(format!(
+        "revision '{}' not found",
+        revision
+    )))
 }
