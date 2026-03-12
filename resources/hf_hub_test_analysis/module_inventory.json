@@ -1,0 +1,359 @@
+{
+  "source_repo": "https://github.com/huggingface/huggingface_hub",
+  "analysis_scope": "Top-level module inventory for huggingface_hub/tests",
+  "worktree_branch": "worktree-hf-hub-tests-analysis",
+  "tracking": {
+    "parent_issue": 11,
+    "inventory_issue": 13,
+    "hub_api_issue": 14,
+    "cli_issue": 15,
+    "final_map_issue": 16
+  },
+  "classification_heuristics": {
+    "live_staging_integration": [
+      "Uses ENDPOINT_STAGING and TOKEN from tests/testing_constants.py",
+      "Creates HfApi(endpoint=ENDPOINT_STAGING, token=TOKEN)",
+      "Creates temporary remote repos with repo_name() and cleans them up",
+      "Exercises real repo/file/discussion/upload/download flows against a live Hub endpoint"
+    ],
+    "production_read_integration": [
+      "Uses with_production_testing decorator",
+      "Reads from fixed public repos on huggingface.co",
+      "Validates download/cache/metadata behavior without mutating the server"
+    ],
+    "vcr_contract": [
+      "Uses @pytest.mark.vcr and module vcr_config",
+      "Encodes HTTP-level behavior but does not hit the target hub live during execution",
+      "Potentially useful as contract reference, but not directly reusable as live integration tests"
+    ],
+    "mocked_or_local": [
+      "Relies on patch/mocker/Mock/MagicMock or temp dirs for the core behavior under test",
+      "Focuses on local token storage, parsing, validation, serialization, CLI argument handling, or utility logic",
+      "Does not materially exercise a live Hub implementation"
+    ],
+    "mixed": [
+      "Contains both live integration sections and mocked/offline/unit sections",
+      "Needs per-class or per-test extraction rather than module-level inclusion"
+    ]
+  },
+  "modules": [
+    {
+      "module": "tests/test_hf_api.py",
+      "primary_category": "live_staging_integration",
+      "secondary_category": "mixed",
+      "reuse_priority": "highest",
+      "rationale": "Large HfApi coverage area with staging-backed repo lifecycle tests plus some mocked subsections. Likely the main source for reusable hub-facing integration cases."
+    },
+    {
+      "module": "tests/test_file_download.py",
+      "primary_category": "mixed",
+      "secondary_category": "production_read_integration",
+      "reuse_priority": "high",
+      "rationale": "Combines real download-path behavior, production-read checks, and offline/mocked failure-path tests. Needs selective extraction."
+    },
+    {
+      "module": "tests/test_snapshot_download.py",
+      "primary_category": "live_staging_integration",
+      "secondary_category": "mixed",
+      "reuse_priority": "high",
+      "rationale": "Exercises repo creation, commits, revisions, and snapshot downloads with some offline simulation mixed in."
+    },
+    {
+      "module": "tests/test_hf_file_system.py",
+      "primary_category": "mixed",
+      "secondary_category": "live_staging_integration",
+      "reuse_priority": "high",
+      "rationale": "Filesystem API coverage appears partly live against the Hub and partly offline/local."
+    },
+    {
+      "module": "tests/test_hub_mixin.py",
+      "primary_category": "live_staging_integration",
+      "secondary_category": null,
+      "reuse_priority": "high",
+      "rationale": "Model push/pull workflow against staging-backed repositories."
+    },
+    {
+      "module": "tests/test_hub_mixin_pytorch.py",
+      "primary_category": "live_staging_integration",
+      "secondary_category": null,
+      "reuse_priority": "high",
+      "rationale": "PyTorch-specific push/pull workflow against staging-backed repositories."
+    },
+    {
+      "module": "tests/test_upload_large_folder.py",
+      "primary_category": "mixed",
+      "secondary_category": "live_staging_integration",
+      "reuse_priority": "medium_high",
+      "rationale": "Large-folder upload flow looks partly live and partly mocked around edge cases and local path handling."
+    },
+    {
+      "module": "tests/test_xet_upload.py",
+      "primary_category": "live_staging_integration",
+      "secondary_category": null,
+      "reuse_priority": "medium_high",
+      "rationale": "Promising if we want Xet upload coverage specifically."
+    },
+    {
+      "module": "tests/test_xet_download.py",
+      "primary_category": "production_read_integration",
+      "secondary_category": "mixed",
+      "reuse_priority": "medium_high",
+      "rationale": "Xet download behavior against known public assets, with some mocked helper coverage mixed in."
+    },
+    {
+      "module": "tests/test_cache_layout.py",
+      "primary_category": "production_read_integration",
+      "secondary_category": null,
+      "reuse_priority": "medium_high",
+      "rationale": "Focused read-only download/cache layout checks against public repos."
+    },
+    {
+      "module": "tests/test_utils_cache.py",
+      "primary_category": "production_read_integration",
+      "secondary_category": null,
+      "reuse_priority": "medium",
+      "rationale": "Useful for validating cache-scanning behavior after real downloads, but less directly about server semantics."
+    },
+    {
+      "module": "tests/test_repocard.py",
+      "primary_category": "mixed",
+      "secondary_category": "production_read_integration",
+      "reuse_priority": "medium",
+      "rationale": "Contains real metadata fetch behavior mixed with parsing and patch-heavy sections."
+    },
+    {
+      "module": "tests/test_cli.py",
+      "primary_category": "mixed",
+      "secondary_category": "mocked_or_local",
+      "reuse_priority": "medium",
+      "rationale": "Large CLI suite with some real hub-facing flows but a substantial amount of command parsing and local behavior."
+    },
+    {
+      "module": "tests/test_cli_discussions.py",
+      "primary_category": "live_staging_integration",
+      "secondary_category": null,
+      "reuse_priority": "medium",
+      "rationale": "Discussion CLI coverage appears to exercise real hub discussion flows."
+    },
+    {
+      "module": "tests/test_buckets.py",
+      "primary_category": "live_staging_integration",
+      "secondary_category": null,
+      "reuse_priority": "medium",
+      "rationale": "Hub-backed bucket behavior, relevant if we care about bucket/file-system compatibility."
+    },
+    {
+      "module": "tests/test_buckets_cli.py",
+      "primary_category": "mixed",
+      "secondary_category": "live_staging_integration",
+      "reuse_priority": "medium",
+      "rationale": "Bucket CLI coverage mixes real remote operations with local/mock-assisted CLI behavior."
+    },
+    {
+      "module": "tests/test_buckets_hf_file_system.py",
+      "primary_category": "mixed",
+      "secondary_category": "live_staging_integration",
+      "reuse_priority": "medium",
+      "rationale": "Likely useful if bucket-backed filesystem semantics matter, but not a core open-hub path."
+    },
+    {
+      "module": "tests/test_commit_api.py",
+      "primary_category": "mocked_or_local",
+      "secondary_category": null,
+      "reuse_priority": "low",
+      "rationale": "Mostly local commit operation modeling and validation rather than live hub interaction."
+    },
+    {
+      "module": "tests/test_lfs.py",
+      "primary_category": "mocked_or_local",
+      "secondary_category": null,
+      "reuse_priority": "low",
+      "rationale": "Despite the name, the suite looks mostly focused on local LFS helper behavior rather than end-to-end LFS server interaction."
+    },
+    {
+      "module": "tests/test_auth.py",
+      "primary_category": "mocked_or_local",
+      "secondary_category": null,
+      "reuse_priority": "low",
+      "rationale": "Local token persistence and auth helper behavior."
+    },
+    {
+      "module": "tests/test_login_utils.py",
+      "primary_category": "mocked_or_local",
+      "secondary_category": null,
+      "reuse_priority": "low",
+      "rationale": "Local login utility behavior, not open-hub integration."
+    },
+    {
+      "module": "tests/test_oauth.py",
+      "primary_category": "mocked_or_local",
+      "secondary_category": null,
+      "reuse_priority": "low",
+      "rationale": "OAuth flow behavior is largely mocked and not directly useful for current hub compatibility goals."
+    },
+    {
+      "module": "tests/test_local_folder.py",
+      "primary_category": "mocked_or_local",
+      "secondary_category": null,
+      "reuse_priority": "low",
+      "rationale": "Purely local folder state logic."
+    },
+    {
+      "module": "tests/test_offline_utils.py",
+      "primary_category": "mocked_or_local",
+      "secondary_category": null,
+      "reuse_priority": "low",
+      "rationale": "Offline simulation helpers; useful for library behavior, not hub validation."
+    },
+    {
+      "module": "tests/test_serialization.py",
+      "primary_category": "mocked_or_local",
+      "secondary_category": null,
+      "reuse_priority": "low",
+      "rationale": "Serialization and framework integration, not core hub API behavior."
+    },
+    {
+      "module": "tests/test_inference_client.py",
+      "primary_category": "vcr_contract",
+      "secondary_category": "mixed",
+      "reuse_priority": "low_medium",
+      "rationale": "Encodes useful request/response expectations, but not directly reusable as live open-hub integration coverage."
+    },
+    {
+      "module": "tests/test_inference_async_client.py",
+      "primary_category": "vcr_contract",
+      "secondary_category": null,
+      "reuse_priority": "low_medium",
+      "rationale": "Same general constraint as synchronous inference tests."
+    },
+    {
+      "module": "tests/test_inference_endpoints.py",
+      "primary_category": "vcr_contract",
+      "secondary_category": "mixed",
+      "reuse_priority": "low_medium",
+      "rationale": "Mostly useful as contract reference; not a direct fit for open-hub compatibility."
+    },
+    {
+      "module": "tests/test_inference_providers.py",
+      "primary_category": "vcr_contract",
+      "secondary_category": "mixed",
+      "reuse_priority": "low_medium",
+      "rationale": "Provider-specific and mock-heavy."
+    },
+    {
+      "module": "tests/test_inference_text_generation.py",
+      "primary_category": "vcr_contract",
+      "secondary_category": "mixed",
+      "reuse_priority": "low_medium",
+      "rationale": "Useful only if we later evaluate inference-provider compatibility."
+    },
+    {
+      "module": "tests/test_inference_types.py",
+      "primary_category": "mocked_or_local",
+      "secondary_category": null,
+      "reuse_priority": "low",
+      "rationale": "Type and schema behavior only."
+    },
+    {
+      "module": "tests/test_cache_no_symlinks.py",
+      "primary_category": "mocked_or_local",
+      "secondary_category": null,
+      "reuse_priority": "low",
+      "rationale": "Local filesystem edge case coverage."
+    },
+    {
+      "module": "tests/test_commit_scheduler.py",
+      "primary_category": "mocked_or_local",
+      "secondary_category": null,
+      "reuse_priority": "low",
+      "rationale": "Scheduler internals and local state."
+    },
+    {
+      "module": "tests/test_dduf.py",
+      "primary_category": "mocked_or_local",
+      "secondary_category": null,
+      "reuse_priority": "low",
+      "rationale": "Format parsing only."
+    },
+    {
+      "module": "tests/test_eval_results.py",
+      "primary_category": "mocked_or_local",
+      "secondary_category": null,
+      "reuse_priority": "low",
+      "rationale": "Evaluation metadata only."
+    },
+    {
+      "module": "tests/test_endpoint_helpers.py",
+      "primary_category": "mocked_or_local",
+      "secondary_category": null,
+      "reuse_priority": "low",
+      "rationale": "Helper logic, not live hub coverage."
+    },
+    {
+      "module": "tests/test_init_lazy_loading.py",
+      "primary_category": "mocked_or_local",
+      "secondary_category": null,
+      "reuse_priority": "low",
+      "rationale": "Import behavior only."
+    },
+    {
+      "module": "tests/test_testing_configuration.py",
+      "primary_category": "mocked_or_local",
+      "secondary_category": null,
+      "reuse_priority": "low",
+      "rationale": "Tests the test setup itself."
+    },
+    {
+      "module": "tests/test_verification.py",
+      "primary_category": "mixed",
+      "secondary_category": "mocked_or_local",
+      "reuse_priority": "low",
+      "rationale": "May touch real verification-facing behavior, but not central to open-hub CRUD compatibility."
+    },
+    {
+      "module": "tests/test_webhooks_server.py",
+      "primary_category": "mocked_or_local",
+      "secondary_category": null,
+      "reuse_priority": "low",
+      "rationale": "Local server/webhook behavior."
+    },
+    {
+      "module": "tests/test_windows.py",
+      "primary_category": "mocked_or_local",
+      "secondary_category": null,
+      "reuse_priority": "low",
+      "rationale": "Platform-specific local behavior."
+    },
+    {
+      "module": "tests/test_utils_*.py",
+      "primary_category": "mocked_or_local",
+      "secondary_category": null,
+      "reuse_priority": "low",
+      "rationale": "Utility-only coverage; useful for client correctness, not hub integration compatibility."
+    }
+  ],
+  "priority_modules_for_per_test_analysis": [
+    "tests/test_hf_api.py",
+    "tests/test_file_download.py",
+    "tests/test_snapshot_download.py",
+    "tests/test_hf_file_system.py",
+    "tests/test_hub_mixin.py",
+    "tests/test_hub_mixin_pytorch.py",
+    "tests/test_upload_large_folder.py",
+    "tests/test_xet_upload.py",
+    "tests/test_xet_download.py",
+    "tests/test_cache_layout.py",
+    "tests/test_utils_cache.py",
+    "tests/test_repocard.py",
+    "tests/test_cli.py",
+    "tests/test_cli_discussions.py",
+    "tests/test_buckets.py",
+    "tests/test_buckets_cli.py",
+    "tests/test_buckets_hf_file_system.py"
+  ],
+  "notes": [
+    "pytest defaults HUGGINGFACE_CO_STAGING=1 in pyproject.toml, so modules may implicitly target staging even without patching ENDPOINT directly.",
+    "The module inventory is intentionally conservative: mixed modules require class-level or test-level review before they can be recommended for reuse.",
+    "VCR-backed inference tests are behaviorally informative but are not direct candidates for validating a live alternative hub endpoint."
+  ]
+}

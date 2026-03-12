@@ -1,0 +1,1477 @@
+{
+  "source_repo": "https://github.com/huggingface/huggingface_hub",
+  "analysis_goal": "Identify huggingface_hub tests that are actually useful for validating an alternative open Hub implementation, excluding pure unit tests and mock-dominated coverage.",
+  "generated_in_worktree": "worktree-hf-hub-tests-analysis",
+  "tracking": {
+    "parent_issue": 11,
+    "hub_api_issue": 14,
+    "cli_issue": 15,
+    "final_map_issue": 16
+  },
+  "inventory_file": "resources/hf_hub_test_analysis/module_inventory.json",
+  "category_definitions": {
+    "live_hub_candidate": "Hits a live Hub endpoint and exercises meaningful server behavior such as repo creation, upload, download, branching, discussions, buckets, or Xet flows.",
+    "production_read_candidate": "Reads from fixed public repos or resources on a live endpoint without mutating server state.",
+    "mixed_needs_extraction": "Contains useful Hub-facing behavior, but is mixed with offline simulation, local filesystem assertions, or partial mocking and should be selectively extracted.",
+    "vcr_contract_reference": "Encodes behavior or CLI-to-API mapping that may still be useful as a contract reference, but is not a direct live integration test for our Hub.",
+    "exclude_mocked_or_local": "Dominated by local-only logic, parsing, formatting, filesystem behavior, or mocks; not worth reusing as open-Hub integration coverage."
+  },
+  "recommended_first_pass": [
+    {
+      "module": "tests/test_hf_api.py",
+      "reason": "Largest source of true Hub CRUD and metadata coverage."
+    },
+    {
+      "module": "tests/test_snapshot_download.py",
+      "reason": "Clean end-to-end snapshot download coverage with cache and revision handling."
+    },
+    {
+      "module": "tests/test_file_download.py",
+      "reason": "Good download-path coverage if offline and local-only sections are skipped."
+    },
+    {
+      "module": "tests/test_hf_file_system.py",
+      "reason": "Covers filesystem-style access patterns against repositories."
+    },
+    {
+      "module": "tests/test_hub_mixin.py",
+      "reason": "Simple push-to-hub roundtrip for mixin-driven models."
+    },
+    {
+      "module": "tests/test_hub_mixin_pytorch.py",
+      "reason": "Same as above for PyTorch-specific paths."
+    },
+    {
+      "module": "tests/test_cli_discussions.py",
+      "reason": "Real CLI-driven discussion and PR flows against staging."
+    },
+    {
+      "module": "tests/test_buckets.py",
+      "reason": "High-signal live tests if bucket compatibility matters."
+    },
+    {
+      "module": "tests/test_buckets_cli.py",
+      "reason": "Comprehensive end-to-end bucket CLI coverage with real remote operations."
+    },
+    {
+      "module": "tests/test_xet_upload.py",
+      "reason": "Directly relevant if our Hub aims to support Xet uploads."
+    },
+    {
+      "module": "tests/test_xet_download.py",
+      "reason": "Relevant if our Hub aims to support Xet reads and snapshot download behavior."
+    }
+  ],
+  "modules": [
+    {
+      "module": "tests/test_hf_api.py",
+      "status": "high_value",
+      "notes": [
+        "This is the richest source of reusable Hub-facing integration coverage in the upstream suite.",
+        "Some sections are still partially mocked or focus on local helper behavior; only the groups below are recommended."
+      ],
+      "candidate_groups": [
+        {
+          "category": "live_hub_candidate",
+          "scope": "HfApiRepoFileExistsTest",
+          "feature_area": "repo metadata and existence checks",
+          "server_interaction": "staging read",
+          "test_names": [
+            "test_repo_exists",
+            "test_revision_exists",
+            "test_file_exists"
+          ],
+          "rationale": "Direct metadata queries against live repos, revisions, and files.",
+          "endpoints_or_operations": [
+            "repo_exists",
+            "revision_exists",
+            "file_exists"
+          ],
+          "adaptation_note": "Low-friction candidate for direct reuse against our endpoint."
+        },
+        {
+          "category": "live_hub_candidate",
+          "scope": "HfApiEndpointsTest::auth_and_repo_management",
+          "feature_area": "whoami and repo management",
+          "server_interaction": "staging read/write",
+          "test_names": [
+            "test_whoami_with_passing_token",
+            "test_whoami_with_caching",
+            "test_delete_repo_missing_ok",
+            "test_move_repo_normal_usage",
+            "test_update_repo_settings",
+            "test_update_dataset_repo_settings"
+          ],
+          "rationale": "Exercises real auth and repo settings flows rather than pure validation logic.",
+          "endpoints_or_operations": [
+            "whoami",
+            "delete_repo",
+            "move_repo",
+            "update_repo_settings"
+          ],
+          "adaptation_note": "Useful for verifying auth and repository settings compatibility."
+        },
+        {
+          "category": "live_hub_candidate",
+          "scope": "CommitApiTest::file_and_folder_uploads",
+          "feature_area": "uploads and commit operations",
+          "server_interaction": "staging write",
+          "test_names": [
+            "test_upload_file_str_path",
+            "test_upload_file_pathlib_path",
+            "test_upload_file_fileobj",
+            "test_upload_file_bytesio",
+            "test_upload_data_files_to_model_repo",
+            "test_delete_file",
+            "test_upload_folder",
+            "test_upload_folder_create_pr",
+            "test_upload_folder_git_folder_excluded",
+            "test_upload_folder_gitignore_already_exists",
+            "test_upload_folder_gitignore_in_commit"
+          ],
+          "rationale": "Core write-path coverage with file upload, folder upload, deletion, and PR creation variants.",
+          "endpoints_or_operations": [
+            "upload_file",
+            "upload_folder",
+            "delete_file",
+            "create_commit",
+            "create_pr"
+          ],
+          "adaptation_note": "Strong candidate set for basic upload interoperability."
+        },
+        {
+          "category": "live_hub_candidate",
+          "scope": "CommitApiTest::commit_variants",
+          "feature_area": "commit construction and edge cases",
+          "server_interaction": "staging write",
+          "test_names": [
+            "test_create_commit",
+            "test_create_commit_conflict",
+            "test_create_commit_huge_regular_files",
+            "test_commit_copy_file",
+            "test_create_commit_mutates_operations",
+            "test_pre_upload_before_commit",
+            "test_commit_modelcard_invalid_metadata",
+            "test_commit_modelcard_empty_metadata",
+            "test_prevent_empty_commit_if_no_op",
+            "test_prevent_empty_commit_if_no_new_addition",
+            "test_prevent_empty_commit_if_no_new_copy",
+            "test_empty_commit_on_pr",
+            "test_continue_commit_without_existing_files",
+            "test_continue_commit_if_copy_is_identical",
+            "test_continue_commit_if_only_deletion"
+          ],
+          "rationale": "High-signal write-path coverage around add/delete/copy semantics and commit validation enforced by the server.",
+          "endpoints_or_operations": [
+            "create_commit",
+            "CommitOperationAdd",
+            "CommitOperationDelete",
+            "CommitOperationCopy"
+          ],
+          "adaptation_note": "Very valuable for checking commit semantics against our implementation."
+        },
+        {
+          "category": "live_hub_candidate",
+          "scope": "CommitApiTest::pull_request_flows",
+          "feature_area": "PR creation from uploads and commits",
+          "server_interaction": "staging write",
+          "test_names": [
+            "test_upload_file_create_pr",
+            "test_create_commit_create_pr",
+            "test_create_commit_create_pr_against_branch",
+            "test_create_commit_create_pr_on_foreign_repo"
+          ],
+          "rationale": "Covers a real branch/PR workflow rather than local commit object shaping only.",
+          "endpoints_or_operations": [
+            "create_commit",
+            "create_pr"
+          ],
+          "adaptation_note": "Include only if PR semantics matter for our compatibility target."
+        },
+        {
+          "category": "live_hub_candidate",
+          "scope": "HfApiTagEndpointTest",
+          "feature_area": "git tag management",
+          "server_interaction": "staging write",
+          "test_names": [
+            "test_create_tag_on_main",
+            "test_create_tag_on_pr",
+            "test_create_tag_on_commit_oid",
+            "test_invalid_tag_name",
+            "test_create_tag_on_missing_revision",
+            "test_create_tag_twice",
+            "test_create_and_delete_tag",
+            "test_delete_tag_missing_tag",
+            "test_delete_tag_with_branch_name"
+          ],
+          "rationale": "Real version-control semantics against the server.",
+          "endpoints_or_operations": [
+            "create_tag",
+            "delete_tag"
+          ],
+          "adaptation_note": "Only relevant if we intend to match tag APIs."
+        },
+        {
+          "category": "live_hub_candidate",
+          "scope": "HfApiBranchEndpointTest",
+          "feature_area": "git branch management",
+          "server_interaction": "staging write",
+          "test_names": [
+            "test_create_and_delete_branch",
+            "test_create_branch_existing_branch_fails",
+            "test_create_branch_existing_tag_does_not_fail",
+            "test_create_branch_forbidden_ref_branch_fails",
+            "test_delete_branch_on_protected_branch_fails",
+            "test_delete_branch_on_missing_branch_fails",
+            "test_create_branch_from_revision"
+          ],
+          "rationale": "Real branch API behavior rather than local ref parsing.",
+          "endpoints_or_operations": [
+            "create_branch",
+            "delete_branch"
+          ],
+          "adaptation_note": "Only relevant if branch APIs are in scope."
+        },
+        {
+          "category": "live_hub_candidate",
+          "scope": "HfApiDeleteFilesTest and HfApiDeleteFolderTest",
+          "feature_area": "delete patterns and folder removal",
+          "server_interaction": "staging write",
+          "test_names": [
+            "test_delete_single_file",
+            "test_delete_multiple_files",
+            "test_delete_folder_with_pattern",
+            "test_delete_folder_without_pattern",
+            "test_create_commit_delete_folder_implicit",
+            "test_create_commit_delete_folder_explicit",
+            "test_create_commit_implicit_delete_folder_is_ok"
+          ],
+          "rationale": "Directly probes server-side delete semantics and pattern behavior.",
+          "endpoints_or_operations": [
+            "delete patterns via create_commit"
+          ],
+          "adaptation_note": "Good candidate set for delete semantics."
+        },
+        {
+          "category": "live_hub_candidate",
+          "scope": "discussion_and_collaboration",
+          "feature_area": "discussions, comments, PR merge",
+          "server_interaction": "staging write/read",
+          "test_names": [
+            "test_create_discussion",
+            "test_create_discussion_space",
+            "test_create_pull_request",
+            "test_get_repo_discussion",
+            "test_get_repo_discussion_by_type",
+            "test_get_repo_discussion_by_author",
+            "test_get_repo_discussion_by_status",
+            "test_get_repo_discussion_pagination",
+            "test_get_discussion_details",
+            "test_edit_discussion_comment",
+            "test_comment_discussion",
+            "test_rename_discussion",
+            "test_change_discussion_status",
+            "test_merge_pull_request"
+          ],
+          "rationale": "True collaboration features that interact with server state.",
+          "endpoints_or_operations": [
+            "create_discussion",
+            "list_discussions",
+            "comment_discussion",
+            "rename_discussion",
+            "change_discussion_status",
+            "merge_pull_request"
+          ],
+          "adaptation_note": "High-value only if we want to mirror discussion APIs."
+        },
+        {
+          "category": "live_hub_candidate",
+          "scope": "LFS_and_background_ops",
+          "feature_area": "empty LFS uploads, LFS cleanup, async commit execution",
+          "server_interaction": "staging write/read",
+          "test_names": [
+            "test_upload_empty_lfs_file",
+            "test_list_and_delete_lfs_files",
+            "test_commit_to_repo_in_background",
+            "test_run_as_future"
+          ],
+          "rationale": "Touches real LFS and background execution behavior not covered by simpler upload tests.",
+          "endpoints_or_operations": [
+            "upload_file",
+            "list_lfs_files",
+            "delete_lfs_files",
+            "run_as_future"
+          ],
+          "adaptation_note": "Include only if LFS and background commit ergonomics matter."
+        },
+        {
+          "category": "production_read_candidate",
+          "scope": "HfApiListRepoTreeTest",
+          "feature_area": "tree listing and file navigation",
+          "server_interaction": "production read",
+          "test_names": [
+            "test_list_tree",
+            "test_list_tree_recursively",
+            "test_list_unknown_tree",
+            "test_list_with_empty_path",
+            "test_list_tree_with_expand",
+            "test_list_files_without_expand",
+            "test_list_tree_with_xethash"
+          ],
+          "rationale": "Good read-only contract coverage against public repos.",
+          "endpoints_or_operations": [
+            "list_tree"
+          ],
+          "adaptation_note": "Useful as a safe read-only compatibility slice."
+        },
+        {
+          "category": "production_read_candidate",
+          "scope": "git_refs_and_commits",
+          "feature_area": "listing refs and commits",
+          "server_interaction": "production read",
+          "test_names": [
+            "test_list_refs_gpt2",
+            "test_list_refs_bigcode",
+            "test_list_refs_with_prs",
+            "test_list_commits_on_main",
+            "test_list_commits_on_pr",
+            "test_list_commits_include_formatted",
+            "test_list_commits_on_missing_repo",
+            "test_list_commits_on_missing_revision"
+          ],
+          "rationale": "Good read-only source of git metadata expectations.",
+          "endpoints_or_operations": [
+            "list_refs",
+            "list_commits"
+          ],
+          "adaptation_note": "Useful if we want read-only git metadata parity."
+        },
+        {
+          "category": "mixed_needs_extraction",
+          "scope": "repo_edge_cases_and_validation",
+          "feature_area": "error and validation handling around repo operations",
+          "server_interaction": "staging with some mocking or local validation mixed in",
+          "test_names": [
+            "test_move_repo_target_already_exists",
+            "test_move_repo_invalid_repo_id",
+            "test_delete_repo_error_message",
+            "test_upload_file_validation",
+            "test_commit_operation_validation",
+            "test_create_repo_return_value",
+            "test_create_repo_already_exists_but_no_write_permission",
+            "test_create_repo_already_exists_but_no_write_permission_returns_correct_repo_id",
+            "test_create_repo_private_by_default",
+            "test_get_full_repo_name",
+            "test_create_file_with_relative_path",
+            "test_create_commit_repo_does_not_exist",
+            "test_create_commit_lfs_file_implicit_token",
+            "test_create_commit_repo_id_case_insensitive"
+          ],
+          "rationale": "Useful behavior lives here, but the tests are not as cleanly live-endpoint as the groups above.",
+          "endpoints_or_operations": [
+            "create_repo",
+            "create_commit",
+            "move_repo"
+          ],
+          "adaptation_note": "Good source for selective extraction rather than wholesale reuse."
+        }
+      ],
+      "excluded_groups": [
+        {
+          "scope": "token_headers_and_url_objects",
+          "reason": "Mostly local header shaping, RepoUrl object behavior, and helper parsing rather than server integration.",
+          "test_names": [
+            "HfApiTokenAttributeTest::*",
+            "RepoUrlTest::*",
+            "ParseHFUrlTest::*",
+            "TestDownloadHfApiAlias::*",
+            "TestExpandPropertyType::*",
+            "HfApiVerifyChecksumsTest::test_verify_repo_checksums_with_local_cache"
+          ]
+        },
+        {
+          "scope": "mocked_spaces_only",
+          "reason": "Space operations in this group are heavily mocked and are not useful as live compatibility coverage.",
+          "test_names": [
+            "TestSpaceAPIMocked::*"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "tests/test_snapshot_download.py",
+      "status": "high_value",
+      "candidate_groups": [
+        {
+          "category": "live_hub_candidate",
+          "scope": "SnapshotDownloadTests::core_roundtrip",
+          "feature_area": "snapshot download and revision handling",
+          "server_interaction": "staging write/read",
+          "test_names": [
+            "test_download_model",
+            "test_download_private_model",
+            "test_download_model_local_only",
+            "test_download_model_local_only_multiple",
+            "test_download_to_local_dir"
+          ],
+          "rationale": "Very clean end-to-end repo creation, commit, download, cache, and auth coverage.",
+          "endpoints_or_operations": [
+            "create_repo",
+            "create_commit",
+            "snapshot_download",
+            "update_repo_settings"
+          ],
+          "adaptation_note": "Excellent first-class candidate for direct reuse."
+        },
+        {
+          "category": "live_hub_candidate",
+          "scope": "SnapshotDownloadTests::pattern_filters",
+          "feature_area": "allow/ignore patterns",
+          "server_interaction": "staging write/read",
+          "test_names": [
+            "test_download_model_with_allow_pattern",
+            "test_download_model_with_allow_pattern_list",
+            "test_download_model_with_ignore_pattern",
+            "test_download_model_with_ignore_pattern_list"
+          ],
+          "rationale": "Good targeted behavior checks for filtered download semantics.",
+          "endpoints_or_operations": [
+            "snapshot_download with pattern parameters"
+          ],
+          "adaptation_note": "Useful if we want pattern-matching parity."
+        },
+        {
+          "category": "mixed_needs_extraction",
+          "scope": "SnapshotDownloadTests::offline_cases",
+          "feature_area": "offline fallback and cache behavior",
+          "server_interaction": "staging setup plus offline simulation",
+          "test_names": [
+            "test_download_model_to_local_dir_with_offline_mode",
+            "test_offline_mode_with_cache_and_empty_local_dir",
+            "test_download_model_offline_mode_not_in_local_dir",
+            "test_download_model_offline_mode_not_cached"
+          ],
+          "rationale": "Useful behavior mixed with local offline simulation helpers.",
+          "endpoints_or_operations": [
+            "snapshot_download",
+            "offline simulation"
+          ],
+          "adaptation_note": "Extract only if we want offline-mode compatibility coverage too."
+        }
+      ],
+      "excluded_groups": []
+    },
+    {
+      "module": "tests/test_file_download.py",
+      "status": "high_value",
+      "candidate_groups": [
+        {
+          "category": "live_hub_candidate",
+          "scope": "StagingDownloadTests",
+          "feature_area": "gated repos and renamed private repos",
+          "server_interaction": "staging write/read",
+          "test_names": [
+            "test_download_from_a_gated_repo_with_hf_hub_download",
+            "test_download_regular_file_from_private_renamed_repo"
+          ],
+          "rationale": "These are real live-endpoint download-path tests rather than CLI parsing or utility coverage.",
+          "endpoints_or_operations": [
+            "repo settings for gated access",
+            "move_repo",
+            "hf_hub_download"
+          ],
+          "adaptation_note": "Good targeted candidates if gated/private repo behavior matters."
+        },
+        {
+          "category": "production_read_candidate",
+          "scope": "CachedDownloadTests::metadata_and_cache",
+          "feature_area": "download cache and metadata behavior",
+          "server_interaction": "production read",
+          "test_names": [
+            "test_file_not_found_locally_and_network_disabled",
+            "test_private_repo_and_file_cached_locally",
+            "test_file_cached_and_read_only_access",
+            "test_hf_hub_download_custom_cache_permission",
+            "test_download_from_a_renamed_repo_with_hf_hub_download",
+            "test_hf_hub_download_with_empty_subfolder",
+            "test_hf_hub_download_offline_no_refs",
+            "test_hf_hub_download_with_user_agent",
+            "test_hf_hub_url_with_empty_subfolder",
+            "test_hf_hub_url_with_endpoint",
+            "test_try_to_load_from_cache_exist",
+            "test_try_to_load_from_cache_specific_pr_revision_exists",
+            "test_try_to_load_from_cache_no_exist",
+            "test_try_to_load_from_cache_specific_commit_id_exist",
+            "test_try_to_load_from_cache_specific_commit_id_no_exist",
+            "test_get_hf_file_metadata_basic",
+            "test_get_hf_file_metadata_from_a_lfs_file",
+            "test_file_consistency_check_fails_regular_file",
+            "test_file_consistency_check_fails_LFS_file"
+          ],
+          "rationale": "Useful read-only contract coverage around resolve/download/cache semantics.",
+          "endpoints_or_operations": [
+            "hf_hub_download",
+            "HEAD/GET resolve URLs",
+            "get_hf_file_metadata",
+            "try_to_load_from_cache"
+          ],
+          "adaptation_note": "Good safe read-only slice if equivalent public fixtures exist on our Hub."
+        },
+        {
+          "category": "mixed_needs_extraction",
+          "scope": "local_dir_and_dry_run_behaviors",
+          "feature_area": "download-to-local-dir and dry-run listing",
+          "server_interaction": "mixed production-read and local filesystem",
+          "test_names": [
+            "test_download_folder_file_in_cache_dir",
+            "test_download_folder_file_to_local_dir",
+            "test_get_pointer_path_and_valid_relative_filename",
+            "test_get_pointer_path_but_invalid_relative_filename",
+            "test_dry_run_cache_dir",
+            "test_dry_run_local_dir"
+          ],
+          "rationale": "These have some real endpoint relevance, but local path assertions dominate part of the behavior.",
+          "endpoints_or_operations": [
+            "download with local_dir",
+            "dry-run tree listing"
+          ],
+          "adaptation_note": "Extract only the server-facing parts if we reuse them."
+        }
+      ],
+      "excluded_groups": [
+        {
+          "scope": "local_http_and_symlink_utilities",
+          "reason": "Purely local utility behavior or mocked HTTP retry logic, not meaningful Hub integration coverage.",
+          "test_names": [
+            "TestDiskUsageWarning::*",
+            "TestHttpGet::*",
+            "CreateSymlinkTest::*",
+            "TestNormalizeEtag::*",
+            "TestExtraLargeFileDownloadPaths::*"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "tests/test_hf_file_system.py",
+      "status": "high_value",
+      "notes": [
+        "The repository filesystem tests inherit a large amount of behavior from shared base classes.",
+        "The inherited test names below are exact and come from the base classes used by the repository-specific subclasses."
+      ],
+      "candidate_groups": [
+        {
+          "category": "live_hub_candidate",
+          "scope": "HfFileSystemRepositoryROTests inherited read-only coverage",
+          "feature_area": "filesystem-style reads against repos",
+          "server_interaction": "staging write/read for setup, then remote reads",
+          "test_names": [
+            "test_info",
+            "test_glob",
+            "test_url",
+            "test_file_type",
+            "test_read_file",
+            "test_stream_file",
+            "test_stream_file_retry",
+            "test_stream_file_reuse_response",
+            "test_stream_buffer_overflow_leftover_is_buffered",
+            "test_stream_read_spans_buffer_and_chunks",
+            "test_stream_read_all_clears_buffer",
+            "test_stream_read_negative_length_reads_all",
+            "test_stream_read_partially_consumes_buffer",
+            "test_stream_read_past_eof_returns_shorter_then_empty",
+            "test_modified_time",
+            "test_open_if_not_found",
+            "test_initialize_from_fsspec",
+            "test_list_root_directory",
+            "test_list_data_directory",
+            "test_list_data_file",
+            "test_list_root_directory_no_detail_then_with_detail",
+            "test_find_root_directory",
+            "test_find_data_file",
+            "test_find_maxdepth",
+            "test_read_bytes",
+            "test_read_text",
+            "test_open_and_read",
+            "test_partial_read",
+            "test_get_file_with_temporary_file",
+            "test_get_file_with_temporary_folder",
+            "test_get_file_with_kwargs",
+            "test_get_file_on_folder",
+            "test_pickle",
+            "test_glob_with_revision",
+            "test_read_file_with_revision",
+            "test_list_data_directory_with_revision",
+            "test_exists_after_repo_deletion",
+            "test_cache",
+            "test_hf_file_system_file_can_handle_gzipped_file"
+          ],
+          "rationale": "This is broad, realistic repository access coverage through the filesystem abstraction.",
+          "endpoints_or_operations": [
+            "repo tree listing",
+            "streamed file reads",
+            "path resolution",
+            "revisioned reads"
+          ],
+          "adaptation_note": "Very good second-wave target once core API tests are stable."
+        },
+        {
+          "category": "live_hub_candidate",
+          "scope": "HfFileSystemRepositoryRWTests inherited write coverage",
+          "feature_area": "filesystem-style writes against repos",
+          "server_interaction": "staging write",
+          "test_names": [
+            "test_remove_file",
+            "test_remove_directory",
+            "test_write_file",
+            "test_write_file_multiple_chunks",
+            "test_append_file",
+            "test_copy_file",
+            "test_remove_file_with_revision",
+            "test_remove_directory_with_revision",
+            "test_find_root_directory_with_incomplete_cache"
+          ],
+          "rationale": "These probe write behavior through the HfFileSystem abstraction rather than direct API calls.",
+          "endpoints_or_operations": [
+            "commit-backed file writes",
+            "removals",
+            "copy semantics"
+          ],
+          "adaptation_note": "Useful if we care about HfFileSystem compatibility, otherwise lower priority than direct API tests."
+        }
+      ],
+      "excluded_groups": [
+        {
+          "scope": "path_resolution_helpers",
+          "reason": "Pure path resolution and helper tests rather than remote integration.",
+          "test_names": [
+            "test_resolve_path",
+            "test_resolve_bucket_path",
+            "test_unresolve_path",
+            "test_unresolve_bucket_path",
+            "test_resolve_path_with_refs_revision",
+            "test_resolve_path_with_non_matching_revisions",
+            "test_access_repositories_lists"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "tests/test_hub_mixin.py",
+      "status": "medium_high_value",
+      "candidate_groups": [
+        {
+          "category": "live_hub_candidate",
+          "scope": "HubMixinTest::test_push_to_hub",
+          "feature_area": "mixin-driven push-to-hub roundtrip",
+          "server_interaction": "staging write/read",
+          "test_names": [
+            "test_push_to_hub"
+          ],
+          "rationale": "The clearest live integration test in the module.",
+          "endpoints_or_operations": [
+            "push_to_hub",
+            "download back uploaded files"
+          ],
+          "adaptation_note": "Good minimal smoke test for model push flows."
+        },
+        {
+          "category": "mixed_needs_extraction",
+          "scope": "HubMixinTest::test_save_pretrained_with_push_to_hub",
+          "feature_area": "push invocation wiring",
+          "server_interaction": "mocked push_to_hub",
+          "test_names": [
+            "test_save_pretrained_with_push_to_hub"
+          ],
+          "rationale": "Behaviorally relevant but not a direct live integration test.",
+          "endpoints_or_operations": [
+            "mocked push_to_hub"
+          ],
+          "adaptation_note": "Reference-only unless we rework it into a live roundtrip."
+        }
+      ],
+      "excluded_groups": [
+        {
+          "scope": "local_serialization_and_tooling",
+          "reason": "Local config serialization, path loading, autocomplete, and typing behavior dominate the rest of the module.",
+          "test_names": [
+            "test_save_pretrained_no_config",
+            "test_save_pretrained_as_dataclass_basic",
+            "test_save_pretrained_as_dict_basic",
+            "test_save_pretrained_optional_dataclass",
+            "test_save_pretrained_optional_dict",
+            "test_save_pretrained_with_dataclass_config",
+            "test_save_pretrained_with_dict_config",
+            "test_init_accepts_kwargs_no_config",
+            "test_init_accepts_kwargs_with_config",
+            "test_init_accepts_kwargs_save_and_load",
+            "test_from_pretrained_model_id_only",
+            "test_from_pretrained_model_id_and_revision",
+            "test_from_pretrained_from_relative_path",
+            "test_from_pretrained_from_absolute_path",
+            "test_from_pretrained_from_absolute_string_path",
+            "test_save_pretrained_do_not_overwrite_new_config",
+            "test_save_pretrained_does_overwrite_legacy_config",
+            "test_from_pretrained_when_cls_is_a_dataclass",
+            "test_from_cls_with_custom_type",
+            "test_with_dataclass_inputs",
+            "test_autocomplete_works_as_expected",
+            "test_get_type_hints_works_as_expected"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "tests/test_hub_mixin_pytorch.py",
+      "status": "medium_high_value",
+      "candidate_groups": [
+        {
+          "category": "live_hub_candidate",
+          "scope": "PytorchHubMixinTest::test_push_to_hub",
+          "feature_area": "PyTorch mixin push-to-hub roundtrip",
+          "server_interaction": "staging write/read",
+          "test_names": [
+            "test_push_to_hub"
+          ],
+          "rationale": "The clean live integration path in the module.",
+          "endpoints_or_operations": [
+            "push_to_hub",
+            "download uploaded model artifacts"
+          ],
+          "adaptation_note": "Useful if we want framework-specific upload coverage."
+        },
+        {
+          "category": "mixed_needs_extraction",
+          "scope": "PytorchHubMixinTest::test_save_pretrained_with_push_to_hub",
+          "feature_area": "push invocation wiring",
+          "server_interaction": "mocked push_to_hub",
+          "test_names": [
+            "test_save_pretrained_with_push_to_hub"
+          ],
+          "rationale": "Relevant behavior but not a clean live test.",
+          "endpoints_or_operations": [
+            "mocked push_to_hub"
+          ],
+          "adaptation_note": "Reference-only unless rewritten into a real roundtrip."
+        }
+      ],
+      "excluded_groups": [
+        {
+          "scope": "local_safetensors_and_config_logic",
+          "reason": "The rest of the module is dominated by local serialization and loader behavior.",
+          "test_names": [
+            "test_save_pretrained_basic",
+            "test_save_pretrained_with_config",
+            "test_save_as_safetensors",
+            "test_from_pretrained_model_id_only",
+            "test_from_pretrained_model_from_hub_prefer_safetensor",
+            "test_from_pretrained_model_from_hub_fallback_pickle",
+            "test_from_pretrained_model_id_and_revision",
+            "test_from_pretrained_to_relative_path",
+            "test_from_pretrained_to_absolute_path",
+            "test_from_pretrained_to_absolute_string_path",
+            "test_generate_model_card",
+            "test_load_no_config",
+            "test_save_with_non_jsonable_config",
+            "test_save_model_with_shared_tensors",
+            "test_save_pretrained_when_config_and_kwargs_are_passed",
+            "test_model_card_with_custom_kwargs",
+            "test_config_with_custom_coders",
+            "test_return_type_hint_from_pretrained",
+            "test_inheritance_and_sibling_classes"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "tests/test_cache_layout.py",
+      "status": "medium_high_value",
+      "candidate_groups": [
+        {
+          "category": "production_read_candidate",
+          "scope": "CacheFileLayoutHfHubDownload and CacheFileLayoutSnapshotDownload",
+          "feature_area": "cache layout and dedup behavior",
+          "server_interaction": "production read",
+          "test_names": [
+            "test_file_downloaded_in_cache",
+            "test_no_exist_file_is_cached",
+            "test_file_download_happens_once",
+            "test_file_download_happens_once_intra_revision",
+            "test_multiple_refs_for_same_file",
+            "test_file_downloaded_in_cache",
+            "test_file_downloaded_in_cache_several_revisions"
+          ],
+          "rationale": "Safe read-only cache behavior checks against fixed public repos.",
+          "endpoints_or_operations": [
+            "hf_hub_download",
+            "snapshot_download"
+          ],
+          "adaptation_note": "Good safe suite if equivalent public fixtures exist on our endpoint."
+        },
+        {
+          "category": "live_hub_candidate",
+          "scope": "ReferenceUpdates::test_update_reference",
+          "feature_area": "cache ref updates after repo mutation",
+          "server_interaction": "staging write/read",
+          "test_names": [
+            "test_update_reference"
+          ],
+          "rationale": "Useful bridge between cache behavior and live repo mutation.",
+          "endpoints_or_operations": [
+            "create_commit",
+            "cache reference update handling"
+          ],
+          "adaptation_note": "A good single high-signal staging test from this module."
+        }
+      ],
+      "excluded_groups": []
+    },
+    {
+      "module": "tests/test_utils_cache.py",
+      "status": "medium_value",
+      "candidate_groups": [
+        {
+          "category": "production_read_candidate",
+          "scope": "TestValidCacheUtils",
+          "feature_area": "scan_cache_dir on real downloaded repos",
+          "server_interaction": "production read in setup, then local cache inspection",
+          "test_names": [
+            "test_scan_cache_on_valid_cache_unix",
+            "test_scan_cache_on_valid_cache_windows"
+          ],
+          "rationale": "The setup phase hits real repos; the assertions then validate the resulting cache structure.",
+          "endpoints_or_operations": [
+            "snapshot_download",
+            "scan_cache_dir"
+          ],
+          "adaptation_note": "Useful if we care about matching client cache expectations."
+        },
+        {
+          "category": "mixed_needs_extraction",
+          "scope": "TestCorruptedCacheUtils",
+          "feature_area": "cache corruption detection after real downloads",
+          "server_interaction": "production-read setup plus local corruption injection",
+          "test_names": [
+            "test_repo_path_not_valid_dir",
+            "test_snapshots_path_not_found",
+            "test_refs_path_not_found",
+            "test_no_exist_path_is_not_a_file",
+            "test_revisions_are_not_valid_symlinks",
+            "test_invalid_blob_in_revisions",
+            "test_delete_strategies_empty_cache",
+            "test_delete_strategies_delete_nothing",
+            "test_delete_strategies_delete_refs",
+            "test_delete_strategies_delete_revisions",
+            "test_delete_strategies_delete_repo"
+          ],
+          "rationale": "Some value comes from the cache shape created by real downloads, but the corruption behavior itself is local.",
+          "endpoints_or_operations": [
+            "snapshot_download",
+            "local cache mutation"
+          ],
+          "adaptation_note": "Secondary priority; useful only if we want client-cache fidelity."
+        }
+      ],
+      "excluded_groups": [
+        {
+          "scope": "TestMissingCacheUtils",
+          "reason": "Purely local missing-path error handling.",
+          "test_names": [
+            "test_cache_dir_is_missing",
+            "test_cache_dir_is_a_file"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "tests/test_xet_download.py",
+      "status": "conditional_on_xet_support",
+      "candidate_groups": [
+        {
+          "category": "production_read_candidate",
+          "scope": "TestXetSnapshotDownload",
+          "feature_area": "snapshot download through Xet-backed repos",
+          "server_interaction": "production read",
+          "test_names": [
+            "test_download_model",
+            "test_snapshot_download_cache_reuse",
+            "test_download_backward_compatibility"
+          ],
+          "rationale": "These are the clearest end-to-end Xet download tests.",
+          "endpoints_or_operations": [
+            "snapshot_download",
+            "Xet-backed resolve behavior"
+          ],
+          "adaptation_note": "Only relevant if our Hub exposes Xet-backed download semantics."
+        },
+        {
+          "category": "mixed_needs_extraction",
+          "scope": "TestXetFileDownload",
+          "feature_area": "xet metadata and transport selection",
+          "server_interaction": "production HEAD requests plus mocked Xet internals",
+          "test_names": [
+            "test_xet_get_called_when_xet_metadata_present",
+            "test_backward_compatibility_no_xet_metadata",
+            "test_get_xet_file_metadata_basic",
+            "test_basic_download",
+            "test_try_to_load_from_cache",
+            "test_cache_reuse",
+            "test_download_to_local_dir",
+            "test_force_download",
+            "test_fallback_to_http_when_xet_not_available",
+            "test_use_xet_when_available",
+            "test_request_headers_passed_to_download_files"
+          ],
+          "rationale": "Behaviorally relevant, but transport internals are partly mocked.",
+          "endpoints_or_operations": [
+            "HEAD resolve",
+            "xet metadata handling",
+            "xet_get"
+          ],
+          "adaptation_note": "Good reference if we want to shape our Xet metadata responses."
+        }
+      ],
+      "excluded_groups": []
+    },
+    {
+      "module": "tests/test_xet_upload.py",
+      "status": "conditional_on_xet_support",
+      "candidate_groups": [
+        {
+          "category": "live_hub_candidate",
+          "scope": "TestXetUpload",
+          "feature_area": "Xet file upload and transfer negotiation",
+          "server_interaction": "staging write/read",
+          "test_names": [
+            "test_upload_file",
+            "test_upload_file_with_bytesio",
+            "test_upload_file_with_byte_array",
+            "test_fallback_to_lfs_when_xet_not_available",
+            "test_upload_folder",
+            "test_upload_folder_create_pr"
+          ],
+          "rationale": "These directly probe live Xet upload behavior.",
+          "endpoints_or_operations": [
+            "preupload",
+            "commit in Xet mode",
+            "download verification"
+          ],
+          "adaptation_note": "Relevant only if our Hub wants real Xet write compatibility."
+        },
+        {
+          "category": "live_hub_candidate",
+          "scope": "TestXetLargeUpload and TestXetE2E",
+          "feature_area": "large Xet upload and token refresh flow",
+          "server_interaction": "staging write/read",
+          "test_names": [
+            "test_upload_large_folder",
+            "test_upload_large_folder_batch_size_greater_than_one",
+            "test_hf_xet_with_token_refresher"
+          ],
+          "rationale": "Higher-value follow-on coverage once simple Xet uploads pass.",
+          "endpoints_or_operations": [
+            "batched Xet uploads",
+            "token refresh during Xet flow"
+          ],
+          "adaptation_note": "Later-stage compatibility slice after basic Xet upload works."
+        }
+      ],
+      "excluded_groups": [
+        {
+          "scope": "transport_negotiation_mocks",
+          "reason": "These tests patch lower-level upload helpers and do not serve as live integration coverage.",
+          "test_names": [
+            "test_transfers_to_xet_when_server_returns_xet",
+            "test_transfers_bytesio_renegotiates_to_lfs_when_server_returns_xet",
+            "test_request_headers_passed_to_upload_files",
+            "test_request_headers_passed_to_upload_bytes"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "tests/test_repocard.py",
+      "status": "medium_value",
+      "candidate_groups": [
+        {
+          "category": "live_hub_candidate",
+          "scope": "RepoCardTest push flows",
+          "feature_area": "README/model card push behavior",
+          "server_interaction": "staging write/read",
+          "test_names": [
+            "test_push_to_hub",
+            "test_push_and_create_pr"
+          ],
+          "rationale": "These are the only clearly hub-facing write flows in the module.",
+          "endpoints_or_operations": [
+            "push_to_hub for README/model cards",
+            "create_pr"
+          ],
+          "adaptation_note": "Nice secondary coverage once core repo upload semantics work."
+        },
+        {
+          "category": "production_read_candidate",
+          "scope": "public_card_loading",
+          "feature_area": "load card content from Hub",
+          "server_interaction": "production read",
+          "test_names": [
+            "test_load_from_hub_if_repo_id_or_path_is_a_dir",
+            "test_load_spacecard_from_hub"
+          ],
+          "rationale": "Safe read-only metadata loading coverage.",
+          "endpoints_or_operations": [
+            "resolve README",
+            "space card retrieval"
+          ],
+          "adaptation_note": "Useful if we want to match basic README/card retrieval semantics."
+        }
+      ],
+      "excluded_groups": [
+        {
+          "scope": "local_yaml_and_template_logic",
+          "reason": "Most of the module is local YAML parsing, template generation, or metadata mutation logic rather than Hub integration.",
+          "test_names": [
+            "RepocardMetadataTest::*",
+            "RepocardMetadataUpdateTest::*",
+            "TestMetadataUpdateOnMissingCard::*",
+            "RepoCardTest::test_load_repocard_from_file",
+            "RepoCardTest::test_change_repocard_data",
+            "RepoCardTest::test_repo_card_from_default_template",
+            "RepoCardTest::test_repo_card_from_default_template_with_model_id",
+            "RepoCardTest::test_repo_card_from_custom_template_path",
+            "RepoCardTest::test_repo_card_from_custom_template_string",
+            "RepoCardTest::test_repo_card_data_must_be_dict",
+            "RepoCardTest::test_repo_card_without_metadata",
+            "RepoCardTest::test_validate_repocard",
+            "RepoCardTest::test_preserve_windows_linebreaks",
+            "RepoCardTest::test_preserve_linebreaks_when_saving",
+            "RepoCardTest::test_updating_text_updates_content",
+            "TestRegexYamlBlock::*",
+            "ModelCardTest::*",
+            "DatasetCardTest::*"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "tests/test_cli_discussions.py",
+      "status": "high_value",
+      "candidate_groups": [
+        {
+          "category": "live_hub_candidate",
+          "scope": "all_discussion_and_pr_cli_flows",
+          "feature_area": "discussion and pull-request CLI behavior",
+          "server_interaction": "staging write/read",
+          "test_names": [
+            "test_list_discussions",
+            "test_list_discussions_quiet",
+            "test_list_discussions_json",
+            "test_list_filter_kind_discussion",
+            "test_list_filter_kind_pull_request",
+            "test_list_filter_status_closed",
+            "test_info_discussion",
+            "test_info_pr",
+            "test_info_json",
+            "test_info_no_color",
+            "test_create_discussion",
+            "test_create_pull_request",
+            "test_create_with_body",
+            "test_create_with_body_file",
+            "test_create_body_and_body_file_conflict",
+            "test_comment_discussion",
+            "test_comment_body_file",
+            "test_comment_no_body",
+            "test_close_discussion",
+            "test_close_with_comment",
+            "test_close_requires_confirmation",
+            "test_reopen_discussion",
+            "test_rename_discussion",
+            "test_merge_pr",
+            "test_merge_requires_confirmation",
+            "test_diff_pr"
+          ],
+          "rationale": "A rare CLI suite that actually drives live Hub behavior instead of patching HfApi.",
+          "endpoints_or_operations": [
+            "discussion listing",
+            "create_discussion",
+            "comment_discussion",
+            "change_discussion_status",
+            "rename_discussion",
+            "merge_pull_request"
+          ],
+          "adaptation_note": "High-value CLI slice for end-to-end compatibility."
+        }
+      ],
+      "excluded_groups": []
+    },
+    {
+      "module": "tests/test_buckets.py",
+      "status": "high_value_if_buckets_matter",
+      "candidate_groups": [
+        {
+          "category": "live_hub_candidate",
+          "scope": "bucket_crud_and_content_ops",
+          "feature_area": "bucket lifecycle and file operations",
+          "server_interaction": "staging write/read",
+          "test_names": [
+            "test_create_bucket",
+            "test_create_bucket_enterprise_org",
+            "test_create_bucket_implicit_namespace",
+            "test_bucket_info",
+            "test_cannot_bucket_info_with_implicit_namespace",
+            "test_bucket_info_private",
+            "test_list_buckets_return_type",
+            "test_list_buckets_with_private",
+            "test_delete_bucket",
+            "test_delete_bucket_missing_ok",
+            "test_delete_bucket_cannot_do_implicit_namespace",
+            "test_move_bucket_rename",
+            "test_list_bucket_tree_on_public_bucket",
+            "test_list_bucket_tree_on_private_bucket",
+            "test_download_bucket_files_skips_missing_first_file",
+            "test_download_bucket_files_raises_on_missing_when_requested",
+            "test_bucket_add_file_content_type"
+          ],
+          "rationale": "Real remote bucket CRUD and content traversal tests.",
+          "endpoints_or_operations": [
+            "create_bucket",
+            "bucket_info",
+            "list_buckets",
+            "delete_bucket",
+            "move_bucket",
+            "list_bucket_tree",
+            "download_bucket_files"
+          ],
+          "adaptation_note": "Relevant only if our target compatibility includes bucket APIs."
+        }
+      ],
+      "excluded_groups": []
+    },
+    {
+      "module": "tests/test_buckets_cli.py",
+      "status": "high_value_if_buckets_matter",
+      "candidate_groups": [
+        {
+          "category": "live_hub_candidate",
+          "scope": "bucket_cli_remote_flows",
+          "feature_area": "bucket CLI creation, listing, removal, copy, and sync",
+          "server_interaction": "staging write/read",
+          "test_names": [
+            "test_create_bucket",
+            "test_create_bucket_private",
+            "test_create_bucket_exist_ok",
+            "test_create_bucket_with_hf_prefix",
+            "test_bucket_info",
+            "test_bucket_info_quiet",
+            "test_delete_bucket",
+            "test_delete_bucket_missing_ok",
+            "test_delete_bucket_not_found",
+            "test_remove_alias",
+            "test_rm_single_file",
+            "test_rm_single_file_quiet",
+            "test_rm_single_file_dry_run",
+            "test_rm_single_file_hf_prefix",
+            "test_rm_recursive",
+            "test_rm_recursive_dry_run",
+            "test_rm_recursive_include",
+            "test_rm_recursive_exclude",
+            "test_rm_recursive_no_files",
+            "test_rm_recursive_no_prefix",
+            "test_rm_recursive_no_prefix_include",
+            "test_move_bucket",
+            "test_bucket_list_table",
+            "test_bucket_list_json",
+            "test_bucket_list_quiet",
+            "test_bucket_list_namespace",
+            "test_bucket_ls_alias",
+            "test_bucket_list_namespace_with_hf_prefix",
+            "test_list_files_default",
+            "test_list_files_recursive",
+            "test_list_files_human_readable",
+            "test_list_files_tree_view",
+            "test_list_files_tree_view_non_recursive",
+            "test_list_files_with_prefix",
+            "test_list_files_with_hf_prefix",
+            "test_list_files_with_hf_prefix_and_subprefix",
+            "test_list_files_empty_bucket",
+            "test_list_files_quiet",
+            "test_list_files_json",
+            "test_list_files_tree_with_human_readable",
+            "test_list_files_tree_quiet",
+            "test_cp_upload_file_to_bucket_root",
+            "test_cp_upload_file_to_bucket_prefix",
+            "test_cp_upload_file_with_remote_name",
+            "test_cp_upload_file_quiet",
+            "test_cp_upload_from_stdin",
+            "test_cp_download_to_explicit_file",
+            "test_cp_download_to_directory",
+            "test_cp_download_nested_file",
+            "test_cp_download_to_stdout",
+            "test_cp_download_quiet",
+            "test_cp_download_creates_parent_dirs",
+            "test_sync_upload_new_files",
+            "test_sync_upload_skips_identical",
+            "test_sync_upload_skips_by_mtime",
+            "test_sync_upload_with_prefix",
+            "test_sync_upload_prefix_with_trailing_slash",
+            "test_sync_download_prefix_does_not_match_similar_names",
+            "test_sync_upload_verbose",
+            "test_sync_upload_quiet",
+            "test_sync_download_new_files",
+            "test_sync_download_skips_identical",
+            "test_sync_download_creates_subdirs"
+          ],
+          "rationale": "End-to-end CLI coverage with real remote bucket operations and substantial file-transfer behavior.",
+          "endpoints_or_operations": [
+            "bucket create/list/info/delete",
+            "remote rm/cp/sync",
+            "list_bucket_tree",
+            "batch_bucket_files",
+            "batch_bucket_delete"
+          ],
+          "adaptation_note": "Very useful if bucket CLI parity is part of the goal."
+        }
+      ],
+      "excluded_groups": [
+        {
+          "scope": "pure_argument_validation",
+          "reason": "Some path-splitting and invalid-argument checks are local-only and not worth porting first.",
+          "test_names": [
+            "test_split_bucket_id_and_prefix",
+            "test_split_bucket_id_and_prefix_invalid",
+            "test_rm_error_no_path",
+            "test_rm_error_include_without_recursive",
+            "test_rm_error_exclude_without_recursive",
+            "test_bucket_list_error_tree_with_namespace",
+            "test_bucket_list_error_recursive_with_namespace",
+            "test_list_files_error_tree_with_json",
+            "test_cp_error_remote_to_remote",
+            "test_cp_error_both_local",
+            "test_cp_error_missing_destination",
+            "test_cp_error_stdin_without_bucket_dest",
+            "test_cp_error_stdin_no_filename_empty_prefix",
+            "test_cp_error_stdin_no_filename_trailing_slash",
+            "test_cp_error_stdout_with_local_source",
+            "test_cp_error_source_is_directory",
+            "test_cp_error_source_file_not_found"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "tests/test_buckets_hf_file_system.py",
+      "status": "medium_value_if_buckets_matter",
+      "notes": [
+        "This module inherits most of its concrete test methods from the generic HfFileSystem base classes.",
+        "The inherited groups below are bucket-specific via bucket-aware setup classes."
+      ],
+      "candidate_groups": [
+        {
+          "category": "live_hub_candidate",
+          "scope": "HfFileSystemBucketROTests inherited read-only coverage",
+          "feature_area": "filesystem-style bucket reads",
+          "server_interaction": "staging write/read",
+          "test_names": [
+            "test_info",
+            "test_glob",
+            "test_url",
+            "test_file_type",
+            "test_read_file",
+            "test_stream_file",
+            "test_stream_file_retry",
+            "test_stream_file_reuse_response",
+            "test_stream_buffer_overflow_leftover_is_buffered",
+            "test_stream_read_spans_buffer_and_chunks",
+            "test_stream_read_all_clears_buffer",
+            "test_stream_read_negative_length_reads_all",
+            "test_stream_read_partially_consumes_buffer",
+            "test_stream_read_past_eof_returns_shorter_then_empty",
+            "test_modified_time",
+            "test_open_if_not_found",
+            "test_initialize_from_fsspec",
+            "test_list_root_directory",
+            "test_list_data_directory",
+            "test_list_data_file",
+            "test_list_root_directory_no_detail_then_with_detail",
+            "test_find_root_directory",
+            "test_find_data_file",
+            "test_find_maxdepth",
+            "test_read_bytes",
+            "test_read_text",
+            "test_open_and_read",
+            "test_partial_read",
+            "test_get_file_with_temporary_file",
+            "test_get_file_with_temporary_folder",
+            "test_get_file_with_kwargs",
+            "test_get_file_on_folder",
+            "test_pickle"
+          ],
+          "rationale": "Bucket-backed version of the generic filesystem read tests.",
+          "endpoints_or_operations": [
+            "bucket tree and read operations through HfFileSystem"
+          ],
+          "adaptation_note": "Good only if bucket-backed HfFileSystem compatibility matters."
+        },
+        {
+          "category": "live_hub_candidate",
+          "scope": "HfFileSystemBucketRWTests inherited write coverage",
+          "feature_area": "filesystem-style bucket writes",
+          "server_interaction": "staging write/read",
+          "test_names": [
+            "test_remove_file",
+            "test_remove_directory",
+            "test_write_file",
+            "test_write_file_multiple_chunks",
+            "test_append_file",
+            "test_copy_file"
+          ],
+          "rationale": "Bucket-backed write path through the filesystem abstraction.",
+          "endpoints_or_operations": [
+            "bucket writes and deletions through HfFileSystem"
+          ],
+          "adaptation_note": "A later-stage suite after direct bucket API tests are already passing."
+        }
+      ],
+      "excluded_groups": []
+    },
+    {
+      "module": "tests/test_cli.py",
+      "status": "mostly_excluded",
+      "candidate_groups": [
+        {
+          "category": "vcr_contract_reference",
+          "scope": "command_to_api_mapping_reference",
+          "feature_area": "CLI parameter translation to client API calls",
+          "server_interaction": "mostly mocked",
+          "test_names": [
+            "test_upload_basic",
+            "test_upload_with_all_options",
+            "test_upload_folder_mock",
+            "test_upload_file_mock",
+            "test_download_basic",
+            "test_download_with_all_options",
+            "test_download_subfolder_via_cli",
+            "test_tag_create_basic",
+            "test_tag_list_basic",
+            "test_branch_create_basic",
+            "test_repo_move_basic",
+            "test_repo_settings_basic",
+            "test_repo_delete_basic",
+            "test_list",
+            "test_deploy_from_hub",
+            "test_delete",
+            "test_pause",
+            "test_resume",
+            "test_ps_format_json",
+            "test_ls",
+            "test_create",
+            "test_update",
+            "test_enable"
+          ],
+          "rationale": "These tests can still be useful as a reference for how the CLI expects to call the client API, but they are not live integration tests against a Hub.",
+          "endpoints_or_operations": [
+            "mocked HfApi calls across many CLI commands"
+          ],
+          "adaptation_note": "Treat as reference material only, not as the reusable open-Hub integration suite."
+        }
+      ],
+      "excluded_groups": [
+        {
+          "scope": "entire_module_for_open_hub_integration",
+          "reason": "This module is dominated by patches and CLI output formatting checks. It is not a good direct source of Hub integration tests.",
+          "test_names": [
+            "most of tests/test_cli.py"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "tests/test_auth.py",
+      "status": "excluded",
+      "candidate_groups": [],
+      "excluded_groups": [
+        {
+          "scope": "all_tests",
+          "reason": "Local token file management and mocked auth helper behavior; not useful as open-Hub integration coverage.",
+          "test_names": [
+            "TestGetTokenByName::*",
+            "TestSaveToken::*",
+            "TestSetActiveToken::*",
+            "TestLogin::*",
+            "TestLogout::*",
+            "TestAuthSwitch::*"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "tests/test_login_utils.py",
+      "status": "excluded",
+      "candidate_groups": [],
+      "excluded_groups": [
+        {
+          "scope": "all_tests",
+          "reason": "Git credential helper setup is local/system-level behavior, not Hub compatibility coverage.",
+          "test_names": [
+            "TestSetGlobalStore::test_set_store_as_git_credential_helper_globally"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "tests/test_oauth.py",
+      "status": "reference_only",
+      "candidate_groups": [
+        {
+          "category": "mixed_needs_extraction",
+          "scope": "OAuth workflow simulation",
+          "feature_area": "OAuth login/callback flow",
+          "server_interaction": "local FastAPI app with hub-ci-specific OAuth behavior",
+          "test_names": [
+            "test_oauth_not_logged_in",
+            "test_oauth_workflow",
+            "test_get_oauth_uris_default",
+            "test_get_oauth_uris_with_prefix_stripped",
+            "test_get_oauth_uris_with_prefix_not_stripped",
+            "test_get_mocked_oauth_info"
+          ],
+          "rationale": "Interesting reference for OAuth behavior, but tightly coupled to hub-ci and local app harnesses.",
+          "endpoints_or_operations": [
+            "oauth authorize redirect",
+            "callback handling"
+          ],
+          "adaptation_note": "Useful only if we later tackle OAuth compatibility explicitly."
+        }
+      ],
+      "excluded_groups": []
+    }
+  ],
+  "explicitly_excluded_modules": [
+    "tests/test_commit_api.py",
+    "tests/test_lfs.py",
+    "tests/test_local_folder.py",
+    "tests/test_offline_utils.py",
+    "tests/test_serialization.py",
+    "tests/test_cache_no_symlinks.py",
+    "tests/test_cli_errors.py",
+    "tests/test_commit_scheduler.py",
+    "tests/test_dduf.py",
+    "tests/test_endpoint_helpers.py",
+    "tests/test_eval_results.py",
+    "tests/test_inference_async_client.py",
+    "tests/test_inference_client.py",
+    "tests/test_inference_endpoints.py",
+    "tests/test_inference_providers.py",
+    "tests/test_inference_text_generation.py",
+    "tests/test_inference_types.py",
+    "tests/test_init_lazy_loading.py",
+    "tests/test_oauth.py (as direct integration source)",
+    "tests/test_repocard_data.py",
+    "tests/test_testing_configuration.py",
+    "tests/test_verification.py",
+    "tests/test_webhooks_server.py",
+    "tests/test_windows.py",
+    "tests/test_xet_utils.py",
+    "tests/test_utils_*.py (except test_utils_cache.py as a cache-compat reference)"
+  ]
+}
