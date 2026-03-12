@@ -14,6 +14,7 @@ use sha2::Digest;
 /// GET /api/{type}s/:owner/:repo/tree/:revision[/*path]
 pub async fn tree_list(
     State(state): State<HubState>,
+    headers: HeaderMap,
     Path(params): Path<Vec<(String, String)>>,
 ) -> Result<Json<Vec<TreeEntry>>, AppError> {
     let params: std::collections::HashMap<_, _> = params.into_iter().collect();
@@ -30,6 +31,8 @@ pub async fn tree_list(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?
         .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
+    let requester_id = auth::resolve_optional_bearer_token(&state.pool, &headers).await?;
+    auth::ensure_repo_read_access(&repo_row, &full_name, requester_id)?;
 
     let files = db_layer::queries::repo_files::list_files(
         &state.pool,
@@ -142,10 +145,30 @@ pub struct PreuploadFileResponse {
 }
 
 pub async fn preupload(
-    State(_state): State<HubState>,
-    Path(_params): Path<Vec<(String, String)>>,
+    State(state): State<HubState>,
+    headers: HeaderMap,
+    Path(params): Path<Vec<(String, String)>>,
     Json(req): Json<PreuploadRequest>,
 ) -> Result<Json<PreuploadResponse>, AppError> {
+    let token = auth::extract_bearer(&headers)
+        .ok_or_else(|| AppError::Unauthorized("missing bearer token".into()))?;
+    let user_id = auth::resolve_bearer_token(&state.pool, token).await?;
+
+    let params: std::collections::HashMap<_, _> = params.into_iter().collect();
+    let owner = params
+        .get("owner")
+        .ok_or_else(|| AppError::BadRequest("missing owner".into()))?;
+    let repo = params
+        .get("repo")
+        .ok_or_else(|| AppError::BadRequest("missing repo".into()))?;
+    let full_name = format!("{}/{}", owner, repo);
+
+    let repo_row = db_layer::queries::repositories::find_repo_by_full_name(&state.pool, &full_name)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
+    auth::ensure_repo_write_access(&repo_row, user_id)?;
+
     let files: Vec<PreuploadFileResponse> = req
         .files
         .iter()
@@ -191,6 +214,7 @@ pub async fn commit(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?
         .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
+    auth::ensure_repo_write_access(&repo_row, user_id)?;
 
     // Parse NDJSON body
     let body_str = String::from_utf8(body.to_vec())
@@ -349,6 +373,7 @@ pub struct CommitResponse {
 pub async fn resolve_file(
     State(state): State<HubState>,
     method: Method,
+    headers: HeaderMap,
     Path(params): Path<Vec<(String, String)>>,
 ) -> Result<Response, AppError> {
     let params: std::collections::HashMap<_, _> = params.into_iter().collect();
@@ -367,6 +392,8 @@ pub async fn resolve_file(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?
         .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
+    let requester_id = auth::resolve_optional_bearer_token(&state.pool, &headers).await?;
+    auth::ensure_repo_read_access(&repo_row, &full_name, requester_id)?;
 
     let file = db_layer::queries::repo_files::find_file(&state.pool, repo_row.id, path)
         .await

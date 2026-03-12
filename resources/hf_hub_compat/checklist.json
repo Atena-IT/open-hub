@@ -7,7 +7,7 @@
   },
   "strategy": {
     "tracking_model": "single_active_batch",
-    "current_pointer": "batch2",
+    "current_pointer": "batch3",
     "status_values": ["done", "in_progress", "planned", "blocked", "out_of_scope"]
   },
   "non_goals": [
@@ -64,7 +64,7 @@
     {
       "id": "batch2",
       "title": "Deeper download and cache semantics",
-      "status": "in_progress",
+      "status": "done",
       "scope": [
         "More hf_hub_download semantics beyond batch-1 happy paths",
         "More snapshot_download semantics beyond batch-1 happy paths",
@@ -104,7 +104,7 @@
     {
       "id": "batch3",
       "title": "Private repo and auth correctness",
-      "status": "planned",
+      "status": "in_progress",
       "scope": [
         "Private/public enforcement",
         "Token and no-token behavior",
@@ -123,8 +123,14 @@
         "crates/hub-api/src/routes/files.rs",
         "auth-adjacent route/query files"
       ],
-      "issue": null,
-      "pr": null,
+      "issue": {
+        "number": 26,
+        "url": "https://github.com/Atena-IT/xet-backend/issues/26"
+      },
+      "pr": {
+        "number": 27,
+        "url": "https://github.com/Atena-IT/xet-backend/pull/27"
+      },
       "depends_on": ["batch2"],
       "exit_criteria": [
         "Targeted auth and visibility tests pass locally",

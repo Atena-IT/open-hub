@@ -1,4 +1,5 @@
 import os
+import uuid
 
 os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
 
@@ -48,12 +49,25 @@ def hf_api(hf_session: dict[str, str]) -> HfApi:
 
 
 @pytest.fixture
+def second_user(hf_endpoint: str) -> dict[str, str]:
+    username = os.environ.get("HF_TEST_SECOND_USERNAME") or f"pytest-hf-hub-alt-{uuid.uuid4().hex[:8]}"
+    password = os.environ.get("HF_TEST_SECOND_PASSWORD", DEFAULT_PASSWORD)
+    token = register_or_login(hf_endpoint, username, password)
+    return {
+        "endpoint": hf_endpoint,
+        "username": username,
+        "password": password,
+        "token": token,
+    }
+
+
+@pytest.fixture
 def repo_factory(hf_api: HfApi, hf_session: dict[str, str]):
     created_repos: list[tuple[str, str]] = []
 
-    def create_repo(prefix: str, repo_type: str = "model") -> str:
+    def create_repo(prefix: str, repo_type: str = "model", private: bool = False) -> str:
         repo_id = make_repo_id(hf_session["username"], prefix)
-        hf_api.create_repo(repo_id=repo_id, repo_type=repo_type)
+        hf_api.create_repo(repo_id=repo_id, repo_type=repo_type, private=private)
         created_repos.append((repo_id, repo_type))
         return repo_id
 
