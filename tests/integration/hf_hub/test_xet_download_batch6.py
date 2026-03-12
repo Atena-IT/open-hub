@@ -89,6 +89,22 @@ def _create_lfs_backed_repo(hf_api, hf_session, repo_factory, tmp_path, private:
 
 
 
+def test_xet_read_token_allows_main_for_empty_repo(hf_session, repo_factory):
+    repo_id = repo_factory("xet-read-token-empty", private=False)
+
+    response = requests.get(
+        f"{hf_session['endpoint']}/api/models/{repo_id}/xet-read-token/main",
+        headers=_auth_headers(hf_session["token"]),
+        timeout=10,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["accessToken"]
+    assert response.json()["exp"] > 0
+    assert response.json()["casUrl"]
+
+
+
 def test_xet_read_token_returns_headers_and_enforces_access_and_revision(
     hf_api, hf_session, repo_factory, second_user, tmp_path
 ):
