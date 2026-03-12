@@ -127,7 +127,10 @@
         "number": 26,
         "url": "https://github.com/Atena-IT/xet-backend/issues/26"
       },
-      "pr": null,
+      "pr": {
+        "number": 27,
+        "url": "https://github.com/Atena-IT/xet-backend/pull/27"
+      },
       "depends_on": ["batch2"],
       "exit_criteria": [
         "Targeted auth and visibility tests pass locally",
