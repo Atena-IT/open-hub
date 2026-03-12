@@ -29,8 +29,8 @@ pub fn verify_password(password: &str, hash: &str) -> Result<bool, AppError> {
 
 /// Generate a new ox_* API token. Returns (plaintext_token, sha256_hash).
 pub fn generate_api_token() -> (String, Vec<u8>) {
-    let mut rng = rand::thread_rng();
-    let random_bytes: [u8; 32] = rng.gen();
+    let mut rng = rand::rng();
+    let random_bytes: [u8; 32] = rng.random();
     let token = format!("ox_{}", hex::encode(random_bytes));
     let hash = sha256_hash(token.as_bytes());
     (token, hash)
