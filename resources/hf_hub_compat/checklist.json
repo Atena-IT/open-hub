@@ -7,7 +7,7 @@
   },
   "strategy": {
     "tracking_model": "single_active_batch",
-    "current_pointer": "batch3",
+    "current_pointer": "batch4",
     "status_values": ["done", "in_progress", "planned", "blocked", "out_of_scope"]
   },
   "non_goals": [
@@ -104,7 +104,7 @@
     {
       "id": "batch3",
       "title": "Private repo and auth correctness",
-      "status": "in_progress",
+      "status": "done",
       "scope": [
         "Private/public enforcement",
         "Token and no-token behavior",
@@ -142,10 +142,11 @@
     {
       "id": "batch4",
       "title": "Revision and history semantics",
-      "status": "planned",
+      "status": "in_progress",
       "scope": [
         "Commit SHA and revision correctness",
-        "Listing and lookup semantics beyond always returning latest head"
+        "Accept main and current head SHA as valid read revisions",
+        "Reject missing revisions instead of silently serving latest head"
       ],
       "upstream_modules": [
         "tests/test_hf_api.py",
@@ -158,8 +159,14 @@
         "crates/hub-api/src/routes/repos.rs",
         "commit and file lookup paths involved in revision resolution"
       ],
-      "issue": null,
-      "pr": null,
+      "issue": {
+        "number": 28,
+        "url": "https://github.com/Atena-IT/xet-backend/issues/28"
+      },
+      "pr": {
+        "number": 29,
+        "url": "https://github.com/Atena-IT/xet-backend/pull/29"
+      },
       "depends_on": ["batch3"],
       "exit_criteria": [
         "Targeted revision tests pass locally",

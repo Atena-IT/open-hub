@@ -26,8 +26,8 @@ It distills the raw upstream test analysis from [issue #11](https://github.com/A
 | --- | --- | --- | --- | --- | --- |
 | Batch 1 | done | Core `HfApi` CRUD, basic `hf_hub_download`, metadata/cache basics, and core `snapshot_download` flows with pattern filters. | `tests/test_hf_api.py`, `tests/test_file_download.py`, `tests/test_snapshot_download.py` | [#17](https://github.com/Atena-IT/xet-backend/issues/17) | [#23](https://github.com/Atena-IT/xet-backend/pull/23) |
 | Batch 2 | done | Deeper download and cache semantics for `hf_hub_download` and `snapshot_download`, including cache reuse and local-dir/cache edge cases that fit the current architecture. | `tests/test_file_download.py`, `tests/test_snapshot_download.py`, `tests/test_cache_layout.py`, `tests/test_utils_cache.py` | [#24](https://github.com/Atena-IT/xet-backend/issues/24) | [#25](https://github.com/Atena-IT/xet-backend/pull/25) |
-| Batch 3 | in_progress | Private repo enforcement, token/no-token behavior, and correct 401/403/404 semantics for protected resources. | `tests/test_hf_api.py`, `tests/test_file_download.py` | [#26](https://github.com/Atena-IT/xet-backend/issues/26) | [#27](https://github.com/Atena-IT/xet-backend/pull/27) |
-| Batch 4 | planned | Revision and history semantics, including commit SHA handling and non-HEAD lookup behavior. | `tests/test_hf_api.py`, `tests/test_snapshot_download.py` | TBD | TBD |
+| Batch 3 | done | Private repo enforcement, token/no-token behavior, and correct 401/403/404 semantics for protected resources. | `tests/test_hf_api.py`, `tests/test_file_download.py` | [#26](https://github.com/Atena-IT/xet-backend/issues/26) | [#27](https://github.com/Atena-IT/xet-backend/pull/27) |
+| Batch 4 | in_progress | Revision and history semantics, including commit SHA handling and non-HEAD lookup behavior. | `tests/test_hf_api.py`, `tests/test_snapshot_download.py` | [#28](https://github.com/Atena-IT/xet-backend/issues/28) | [#29](https://github.com/Atena-IT/xet-backend/pull/29) |
 | Batch 5 | planned | Branch, tag, and PR-oriented Hub workflows, only if still desired after batch 4. | `tests/test_hf_api.py`, `tests/test_cli_discussions.py` | TBD | TBD |
 | Batch 6 | planned | LFS/Xet-heavy and filesystem-heavy compatibility where it directly exercises supported server behavior. | `tests/test_hf_file_system.py`, `tests/test_xet_upload.py`, `tests/test_xet_download.py`, `tests/test_repocard.py` | TBD | TBD |
 
@@ -87,7 +87,7 @@ It distills the raw upstream test analysis from [issue #11](https://github.com/A
 
 ### Batch 3 — private repo and auth correctness
 
-**Status:** `in_progress`
+**Status:** `done`
 - Issue: [#26](https://github.com/Atena-IT/xet-backend/issues/26)
 - PR: [#27](https://github.com/Atena-IT/xet-backend/pull/27)
 
@@ -112,11 +112,14 @@ It distills the raw upstream test analysis from [issue #11](https://github.com/A
 
 ### Batch 4 — revision and history semantics
 
-**Status:** `planned`
+**Status:** `in_progress`
+- Issue: [#28](https://github.com/Atena-IT/xet-backend/issues/28)
+- PR: [#29](https://github.com/Atena-IT/xet-backend/pull/29)
 
 **Target**
 - verify commit SHA and revision correctness beyond always returning latest head
-- add lookup/listing semantics that matter for practical download and metadata workflows
+- accept `main` and the current head commit SHA as valid read revisions in the current storage model
+- reject missing revisions instead of silently serving the latest head
 
 **Likely local files**
 - `tests/integration/hf_hub/test_revisions_batch4.py`
