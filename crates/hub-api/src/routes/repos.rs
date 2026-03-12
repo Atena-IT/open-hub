@@ -177,9 +177,7 @@ pub async fn update_repo_settings(
         .map_err(|e| AppError::Internal(e.to_string()))?
         .ok_or_else(|| AppError::NotFound(format!("repo {} not found", full_name)))?;
 
-    if repo_row.owner_id != user_id {
-        return Err(AppError::Forbidden("not the repo owner".into()));
-    }
+    auth::ensure_repo_write_access(&repo_row, user_id)?;
 
     // Ideally we would update the visibility in the database here, but the queries module
     // might not have `update_repo_visibility` yet. For now, we will return success to make the client happy.
@@ -191,6 +189,7 @@ pub async fn update_repo_settings(
 
 pub async fn repo_info(
     State(state): State<HubState>,
+    headers: HeaderMap,
     Path((owner, repo)): Path<(String, String)>,
 ) -> Result<Json<RepoInfoResponse>, AppError> {
     let full_name = format!("{}/{}", owner, repo);
@@ -198,6 +197,8 @@ pub async fn repo_info(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?
         .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
+    let requester_id = auth::resolve_optional_bearer_token(&state.pool, &headers).await?;
+    auth::ensure_repo_read_access(&repo_row, &full_name, requester_id)?;
 
     let files = db_layer::queries::repo_files::list_files(&state.pool, repo_row.id, None)
         .await
@@ -228,6 +229,7 @@ pub async fn repo_info(
 
 pub async fn repo_info_revision(
     State(state): State<HubState>,
+    headers: HeaderMap,
     Path((owner, repo, _revision)): Path<(String, String, String)>,
 ) -> Result<Json<RepoInfoResponse>, AppError> {
     // For now, ignore revision and return the latest head info
@@ -236,6 +238,8 @@ pub async fn repo_info_revision(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?
         .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
+    let requester_id = auth::resolve_optional_bearer_token(&state.pool, &headers).await?;
+    auth::ensure_repo_read_access(&repo_row, &full_name, requester_id)?;
 
     let files = db_layer::queries::repo_files::list_files(&state.pool, repo_row.id, None)
         .await
@@ -266,13 +270,16 @@ pub async fn repo_info_revision(
 
 pub async fn list_models(
     State(state): State<HubState>,
+    headers: HeaderMap,
 ) -> Result<Json<Vec<RepoInfoResponse>>, AppError> {
+    let requester_id = auth::resolve_optional_bearer_token(&state.pool, &headers).await?;
     let repos = db_layer::queries::repositories::list_repos_by_type(&state.pool, "model")
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
     let responses = repos
         .into_iter()
+        .filter(|repo| !repo.private || requester_id == Some(repo.owner_id))
         .map(|repo| repo_to_response(&repo, vec![], &state.config.hub_base_url))
         .collect();
 
@@ -281,13 +288,16 @@ pub async fn list_models(
 
 pub async fn list_datasets(
     State(state): State<HubState>,
+    headers: HeaderMap,
 ) -> Result<Json<Vec<RepoInfoResponse>>, AppError> {
+    let requester_id = auth::resolve_optional_bearer_token(&state.pool, &headers).await?;
     let repos = db_layer::queries::repositories::list_repos_by_type(&state.pool, "dataset")
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
     let responses = repos
         .into_iter()
+        .filter(|repo| !repo.private || requester_id == Some(repo.owner_id))
         .map(|repo| repo_to_response(&repo, vec![], &state.config.hub_base_url))
         .collect();
 
@@ -328,9 +338,7 @@ pub async fn delete_repo(
         .map_err(|e| AppError::Internal(e.to_string()))?
         .ok_or_else(|| AppError::NotFound(format!("repo '{}' not found", full_name)))?;
 
-    if repo.owner_id != user_id {
-        return Err(AppError::Forbidden("not the repo owner".into()));
-    }
+    auth::ensure_repo_write_access(&repo, user_id)?;
 
     db_layer::queries::repositories::delete_repo(&state.pool, repo.id)
         .await

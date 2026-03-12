@@ -2,8 +2,9 @@ use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
 };
+use axum::http::HeaderMap;
 use common::AppError;
-use db_layer::PgPool;
+use db_layer::{queries::repositories::RepoRow, PgPool};
 use rand::Rng;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
@@ -64,10 +65,44 @@ pub async fn resolve_bearer_token(pool: &PgPool, token: &str) -> Result<Uuid, Ap
 }
 
 /// Extract and resolve Bearer token from request headers.
-pub fn extract_bearer(headers: &axum::http::HeaderMap) -> Option<&str> {
-    let value = headers
-        .get(axum::http::header::AUTHORIZATION)?
-        .to_str()
-        .ok()?;
+pub fn extract_bearer(headers: &HeaderMap) -> Option<&str> {
+    let value = headers.get(axum::http::header::AUTHORIZATION)?.to_str().ok()?;
     value.strip_prefix("Bearer ")
+}
+
+pub async fn resolve_optional_bearer_token(
+    pool: &PgPool,
+    headers: &HeaderMap,
+) -> Result<Option<Uuid>, AppError> {
+    match extract_bearer(headers) {
+        Some(token) => resolve_bearer_token(pool, token).await.map(Some),
+        None => Ok(None),
+    }
+}
+
+pub fn ensure_repo_read_access(
+    repo: &RepoRow,
+    full_name: &str,
+    requester_id: Option<Uuid>,
+) -> Result<(), AppError> {
+    if !repo.private || requester_id == Some(repo.owner_id) {
+        return Ok(());
+    }
+
+    if requester_id.is_some() {
+        return Err(AppError::Forbidden(format!(
+            "access to repo '{}' is forbidden",
+            full_name
+        )));
+    }
+
+    Err(AppError::NotFound(format!("repo '{}' not found", full_name)))
+}
+
+pub fn ensure_repo_write_access(repo: &RepoRow, requester_id: Uuid) -> Result<(), AppError> {
+    if repo.owner_id == requester_id {
+        Ok(())
+    } else {
+        Err(AppError::Forbidden("not the repo owner".into()))
+    }
 }
