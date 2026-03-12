@@ -85,6 +85,10 @@ jobs:
           uv run tests/integration/integration_hffilesystem.py
           uv run tests/integration/test_downloads.py
 
+      - name: run huggingface-hub compatibility tests
+        run: |
+          uv run --with pytest --with huggingface_hub --with requests pytest tests/integration/hf_hub -q
+
       - name: fetch Docker logs on failure
         if: failure()
         run: |

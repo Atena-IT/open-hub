@@ -2,6 +2,8 @@
 
 This matrix details the features of the Hugging Face Hub ecosystem and their current support in our custom Xet Storage Backend. Our goal is to provide a complete drop-in replacement for the core features needed to manage datasets and models.
 
+> This matrix stays intentionally high level. Detailed `huggingface_hub` client compatibility is tracked batch-by-batch in `docs/hf_hub_testing_roadmap.md` and `resources/hf_hub_compat/checklist.json`.
+
 | Feature / Use Case | Description | In Roadmap | Implemented |
 | :--- | :--- | :---: | :---: |
 | **Download files** | `hf_hub_download`, `snapshot_download`, specific revisions, and allow/ignore patterns. | Yes | ✅ |
