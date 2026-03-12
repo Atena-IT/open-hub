@@ -64,7 +64,7 @@
     {
       "id": "batch2",
       "title": "Deeper download and cache semantics",
-      "status": "planned",
+      "status": "in_progress",
       "scope": [
         "More hf_hub_download semantics beyond batch-1 happy paths",
         "More snapshot_download semantics beyond batch-1 happy paths",
@@ -84,7 +84,10 @@
         "crates/hub-api/src/routes/files.rs",
         "tests/integration/hf_hub/helpers.py"
       ],
-      "issue": null,
+      "issue": {
+        "number": 24,
+        "url": "https://github.com/Atena-IT/xet-backend/issues/24"
+      },
       "pr": null,
       "depends_on": ["batch1"],
       "exit_criteria": [
