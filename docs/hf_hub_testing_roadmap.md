@@ -203,7 +203,7 @@ The following areas are not part of the current compatibility queue unless the r
 ## Delivery loop for every batch after batch 1
 
 1. Create a GitHub issue with exact scope, exclusions, upstream source modules, and exit criteria.
-2. Create an issue-tied branch from updated `master`.
+2. Create an issue-tied branch from updated `main`.
 3. Open a draft PR immediately.
 4. Implement only that batch’s pytest modules plus the minimum server fixes required.
 5. Run focused batch tests, then full `tests/integration/hf_hub`, then overlapping smoke scripts when relevant.
