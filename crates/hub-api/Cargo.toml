@@ -21,7 +21,7 @@ hex          = { workspace = true }
 axum         = { workspace = true }
 
 argon2       = "0.5"
-rand         = "0.9"
+rand         = "0.10"
 sha2         = "0.10"
 base64       = "0.22"
 tower        = "0.4"
