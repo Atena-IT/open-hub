@@ -17,7 +17,7 @@ uuid         = { workspace = true }
 axum         = { workspace = true }
 
 tera         = "1"
-pulldown-cmark = "0.10"
+pulldown-cmark = "0.13"
 ammonia      = "4"
 tower        = "0.4"
 tower-http   = { version = "0.6", features = ["fs"] }
