@@ -30,6 +30,7 @@ It distills the raw upstream test analysis from [issue #11](https://github.com/A
 | Batch 4 | done | Revision and history semantics, including commit SHA handling and non-HEAD lookup behavior. | `tests/test_hf_api.py`, `tests/test_snapshot_download.py` | [#28](https://github.com/Atena-IT/xet-backend/issues/28) | [#29](https://github.com/Atena-IT/xet-backend/pull/29) |
 | Batch 5 | done | Lightweight named refs for branches and tags, plus revision-aware reads through those refs when they resolve to `main` or current head. | `tests/test_hf_api.py` | [#30](https://github.com/Atena-IT/xet-backend/issues/30) | [#31](https://github.com/Atena-IT/xet-backend/pull/31) |
 | Batch 6 | in_progress | Basic `HfFileSystem` compatibility, README/RepoCard flows, and Xet/LFS compatibility headers and negotiation that fit the current storage model. | `tests/test_hf_file_system.py`, `tests/test_xet_upload.py`, `tests/test_xet_download.py`, `tests/test_repocard.py` | [#32](https://github.com/Atena-IT/xet-backend/issues/32) | [#33](https://github.com/Atena-IT/xet-backend/pull/33) |
+| Batch 7 | planned | Mocked drop-in stub for the full Jobs API CLI surface: one-off jobs (`run_job`, `list_jobs`, `inspect_job`, `fetch_job_logs`, `fetch_job_metrics`, `cancel_job`), hardware catalogue (`list_jobs_hardware`), and scheduled jobs (`create_scheduled_job`, `list_scheduled_jobs`, `inspect_scheduled_job`, `suspend_scheduled_job`, `resume_scheduled_job`, `delete_scheduled_job`). Jobs are stored in-memory and placed in QUEUED stage; no actual compute is performed. Full implementation follows once the stub achieves CLI parity. | `tests/test_jobs.py` (upstream, not yet created) | TBD | TBD |
 
 ## Batch details
 
@@ -190,13 +191,63 @@ It distills the raw upstream test analysis from [issue #11](https://github.com/A
 - Rust tests pass if server code changes
 - CI is green for the batch PR
 
+### Batch 7 — Jobs API mocked stub
+
+**Status:** `planned`
+
+**Context**
+
+The HF Jobs CLI (`hf jobs run`, `hf jobs uv run`) is becoming a central workflow tool.
+Although full compute support is out of scope for the current architecture, the lack of
+any Jobs API response causes the Python client to error out immediately.  A mocked
+drop-in stub is the minimum viable step: the server accepts every Jobs API call, stores
+jobs in-memory, and replies with correctly-shaped JSON so that the CLI and the
+`huggingface_hub` Python library operate without errors.
+
+The stub delivers **full CLI parity** against the official documentation at
+https://huggingface.co/docs/hub/jobs — the full implementation that actually runs
+compute will replace the stubs once the batch is complete.
+
+**Target**
+
+One-off jobs:
+- `run_job` — `POST /api/jobs/{owner}` (accepts image, command, flavor, env, secrets, labels, volumes, timeout)
+- `list_jobs` — `GET /api/jobs/{owner}`
+- `inspect_job` — `GET /api/jobs/{owner}/{job_id}`
+- `fetch_job_logs` — `GET /api/jobs/{owner}/{job_id}/logs` (SSE stream)
+- `fetch_job_metrics` — `GET /api/jobs/{owner}/{job_id}/metrics` (SSE stream)
+- `cancel_job` — `POST /api/jobs/{owner}/{job_id}/cancel`
+
+Hardware catalogue:
+- `list_jobs_hardware` — `GET /api/jobs/hardware`
+
+Scheduled jobs:
+- `create_scheduled_job` / `create_scheduled_uv_job` — `POST /api/scheduled-jobs/{owner}`
+- `list_scheduled_jobs` — `GET /api/scheduled-jobs/{owner}`
+- `inspect_scheduled_job` — `GET /api/scheduled-jobs/{owner}/{id}`
+- `suspend_scheduled_job` — `POST /api/scheduled-jobs/{owner}/{id}/suspend`
+- `resume_scheduled_job` — `POST /api/scheduled-jobs/{owner}/{id}/resume`
+- `delete_scheduled_job` — `DELETE /api/scheduled-jobs/{owner}/{id}`
+
+**Already delivered in this PR**
+- `crates/hub-api/src/routes/jobs.rs` — in-memory stub handlers
+- `crates/hub-api/src/routes/mod.rs` — route registration
+- `crates/hub-api/src/state.rs` — `JobsStore` added to `HubState`
+- `tests/integration/hf_hub/test_jobs_stub_batch7.py` — full pytest coverage of the stub surface
+
+**Exit criteria**
+- all `test_jobs_stub_batch7.py` tests pass locally against the running server
+- full `tests/integration/hf_hub` suite passes locally
+- Rust tests pass (`cargo test --workspace`)
+- CI is green for the batch PR
+
 ## Explicit non-goals
 
 The following areas are not part of the current compatibility queue unless the roadmap is intentionally expanded later:
 
 - Spaces
 - Inference APIs and Inference Endpoints
-- Jobs / compute workflows
+- actual compute execution for Jobs (covered by batch-7 full implementation, not the stub)
 - community/discussions beyond what is strictly necessary for repository compatibility
 - buckets, unless they are later promoted into scope as a deliberate product goal
 

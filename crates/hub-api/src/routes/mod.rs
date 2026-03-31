@@ -1,5 +1,6 @@
 pub mod auth_routes;
 pub mod files;
+pub mod jobs;
 pub mod lfs;
 pub mod repos;
 pub mod tokens;
@@ -215,6 +216,38 @@ pub fn hub_api_router(state: HubState) -> Router {
         // Delete repo
         .route("/api/validate-yaml", post(repos::validate_yaml))
         .route("/api/repos/delete", delete(repos::delete_repo))
+        // ── Jobs API (stub) ──────────────────────────────────────────────────
+        // Hardware catalogue (no owner required, must come before /{owner} to avoid collision)
+        .route("/api/jobs/hardware", get(jobs::list_jobs_hardware))
+        // One-off jobs
+        .route(
+            "/api/jobs/{owner}",
+            post(jobs::run_job).get(jobs::list_jobs),
+        )
+        .route("/api/jobs/{owner}/{job_id}", get(jobs::inspect_job))
+        .route("/api/jobs/{owner}/{job_id}/cancel", post(jobs::cancel_job))
+        .route("/api/jobs/{owner}/{job_id}/logs", get(jobs::fetch_job_logs))
+        .route(
+            "/api/jobs/{owner}/{job_id}/metrics",
+            get(jobs::fetch_job_metrics),
+        )
+        // Scheduled jobs
+        .route(
+            "/api/scheduled-jobs/{owner}",
+            post(jobs::create_scheduled_job).get(jobs::list_scheduled_jobs),
+        )
+        .route(
+            "/api/scheduled-jobs/{owner}/{scheduled_job_id}",
+            get(jobs::inspect_scheduled_job).delete(jobs::delete_scheduled_job),
+        )
+        .route(
+            "/api/scheduled-jobs/{owner}/{scheduled_job_id}/suspend",
+            post(jobs::suspend_scheduled_job),
+        )
+        .route(
+            "/api/scheduled-jobs/{owner}/{scheduled_job_id}/resume",
+            post(jobs::resume_scheduled_job),
+        )
         .with_state(state)
 }
 

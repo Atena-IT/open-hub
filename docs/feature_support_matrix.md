@@ -18,7 +18,7 @@ This matrix details the features of the Hugging Face Hub ecosystem and their cur
 | **Manage Spaces** | Hosting interactive Gradio / Streamlit applications. | No | ❌ |
 | **Buckets** | Native S3-like interface separate from Git repositories. | No | ❌ |
 | **Inference API** | Serverless endpoints to query models directly via HTTP. | No | ❌ |
-| **Jobs / Compute** | AutoTrain and dedicated compute clusters. | No | ❌ |
+| **Jobs / Compute** | Mocked drop-in stub for the full Jobs CLI surface (`run_job`, `list_jobs`, `inspect_job`, `fetch_job_logs`, `fetch_job_metrics`, `cancel_job`, `list_jobs_hardware`, and scheduled-job variants). Jobs are stored in-memory; no actual compute is performed. | Yes | ⚠️ |
 | **Community** | Pull requests discussions, comments, and community boards. | No | ❌ |
 | **Collections** | Grouping repositories into curated lists. | No | ❌ |
 | **Webhooks** | Emitting event hooks when repositories change. | No | ❌ |
