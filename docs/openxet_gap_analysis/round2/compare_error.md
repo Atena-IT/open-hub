@@ -24,6 +24,8 @@ The error module in xet-backend lives in the `common` crate as a single file. It
 | Error classification header | `crates/common/src/error.rs:72` (`classify_not_found_error`) | Adds `X-Error-Code` header for NotFound variants |
 | Blanket conversion from anyhow | `crates/common/src/error.rs:84` (`From<anyhow::Error>`) | Maps any anyhow error to `Internal` |
 
+xet-backend also defines two local-only variants with no direct OpenXet counterpart: `RangeNotSatisfiable` (416) and `Config` (500). They are xet-backend extensions, not coverage of upstream `error` surfaces.
+
 ## Surface comparison
 
 Status values: `covered` | `partial` | `missing` | `out-of-scope`
@@ -40,16 +42,14 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 | `ObjectNotFound(String)` variant | `partial` | `AppError::NotFound(String)` | Folded into generic `NotFound`; `classify_not_found_error` infers `EntryNotFound` from message |
 | `GitProtocol(String)` variant | `missing` | (none) | xet-backend has no Git Smart HTTP protocol layer; no equivalent error surface |
 | `AuthRequired` variant (401) | `covered` | `AppError::Unauthorized(String)` | Both map to HTTP 401 |
-| `AuthFailed` variant (403) | `covered` | `AppError::Unauthorized(String)` | xet-backend returns 401 for failed auth, not 403; see Recommendations |
+| `AuthFailed` variant (403) | `partial` | `AppError::Unauthorized(String)` | xet-backend models failed auth explicitly, but returns 401 rather than OpenXet's 403 |
 | `PermissionDenied` variant (403) | `covered` | `AppError::Forbidden(String)` | Both map to HTTP 403 |
 | `InvalidRequest(String)` variant | `covered` | `AppError::BadRequest(String)` | Same HTTP 400 |
 | `InvalidPath(String)` variant | `partial` | `AppError::BadRequest(String)` | No dedicated variant; path errors use generic `BadRequest` |
 | `Internal(String)` variant | `covered` | `AppError::Internal(String)` | Both map to HTTP 500; xet-backend exposes the message in JSON body; OpenXet masks it |
 | `Io(std::io::Error)` variant | `missing` | (none) | No `#[from]` IO conversion; IO errors are converted manually to `AppError::Internal` at call sites |
 | 5xx message masking | `missing` | (none) | xet-backend returns the actual error message in the JSON body for all variants including `Internal` and `Config` |
-| No-logging inside module | `covered` | `crates/common/src/error.rs:55` | xet-backend logs *inside* `IntoResponse` via `tracing::error!`; OpenXet defers logging entirely to callers |
-| `RangeNotSatisfiable` variant (416) | `covered` | `AppError::RangeNotSatisfiable` in `crates/common/src/error.rs:29` | Present in xet-backend but absent from OpenXet |
-| `Config` variant (500) | `covered` | `AppError::Config(String)` in `crates/common/src/error.rs:11` | Present in xet-backend but absent from OpenXet |
+| No-logging inside module | `partial` | `crates/common/src/error.rs:55` | xet-backend centralizes `tracing::error!` inside `IntoResponse`; OpenXet leaves logging to callers |
 
 ## Gaps
 
@@ -69,17 +69,17 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 - **`InvalidRef` / `InvalidPath` — collapsed into generic `BadRequest`.** OpenXet has dedicated variants for invalid refs and invalid paths, each producing HTTP 400 with a specific `Display` message. xet-backend uses `AppError::BadRequest(String)` for both, losing the semantic distinction at the type level.
 
+- **`AuthFailed` semantics diverge from upstream.** OpenXet maps `AuthFailed` to HTTP 403, while xet-backend routes failed authentication through `AppError::Unauthorized` (401) and reserves 403 for `Forbidden`. This is a deliberate behavioral divergence rather than full parity, but it is the more HTTP-correct split and should likely remain.
+
+- **Logging location differs.** OpenXet keeps the error module as a pure data/response-conversion layer and leaves logging to callers. xet-backend logs every `AppError` inside `IntoResponse` via `tracing::error!`. This is an architectural difference, not a missing capability.
+
 ## Already covered
 
 - **`IntoResponse` trait implementation.** Both systems implement axum's `IntoResponse` to convert their error enum into HTTP responses. The mechanism is identical; only the output format differs (JSON vs. plain text).
 
 - **`thiserror::Error` derive.** Both error enums use `thiserror` for `Display` and `std::error::Error` implementation.
 
-- **401/403 HTTP status split.** xet-backend correctly separates `Unauthorized` (401) and `Forbidden` (403). OpenXet's split is less clean: `AuthRequired` maps to 401, but both `AuthFailed` and `PermissionDenied` map to 403, conflating authentication failures with authorization failures.
-
 - **409 Conflict for duplicate repos.** `AppError::Conflict` covers the same semantics as `ServerError::RepoAlreadyExists`.
-
-- **Centralized tracing of errors.** xet-backend logs every error inside `IntoResponse` with `tracing::error!`, guaranteeing no error goes unlogged. OpenXet leaves logging to callers, which can result in silent drops if a caller forgets to log.
 
 - **Blanket `anyhow::Error` conversion.** xet-backend's `From<anyhow::Error>` covers the same use case as OpenXet's manual `.map_err(|e| ServerError::Internal(e.to_string()))` pattern, with less boilerplate.
 
@@ -93,7 +93,7 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 - **Mask 5xx error messages.** The most significant security gap is that `AppError::Internal` and `AppError::Config` currently expose raw internal error messages (DB errors, S3 SDK errors, Argon2 failures) to API clients in the JSON body. The `IntoResponse` implementation should return a generic `{"error": "Internal server error"}` for 500-class responses while preserving the detailed message in the `tracing::error!` log line. This aligns with OpenXet's approach and is standard practice.
 
-- **Consider typed NotFound sub-variants.** The current `classify_not_found_error` approach of string-matching the message to assign `X-Error-Code` is fragile. Introducing explicit sub-variants (e.g., `RepoNotFound`, `RevisionNotFound`, `EntryNotFound`) would make the classification type-safe and resistant to message wording changes. This matters because the `huggingface_hub` Python client inspects `X-Error-Code` headers to distinguish between "repo does not exist" and "revision does not exist" for retry/fallback logic.
+- **Consider typed NotFound sub-variants.** The current `classify_not_found_error` approach of string-matching the message to assign `X-Error-Code` is fragile. Introducing explicit sub-variants (e.g., `RepoNotFound`, `RevisionNotFound`, `EntryNotFound`) would make the classification type-safe and resistant to message wording changes. This likely matters for `huggingface_hub` compatibility, since the local integration suite distinguishes revision-level and entry-level not-found cases even if the exact downstream dependency on `X-Error-Code` is not yet documented here.
 
 - **Evaluate adding a `Result<T>` alias.** A `pub type Result<T> = std::result::Result<T, AppError>` in the `common` crate would reduce boilerplate across all handler signatures. Low-priority ergonomic improvement.
 
@@ -103,7 +103,7 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 ## Open questions
 
-- The `X-Error-Code` header (`RepoNotFound`, `RevisionNotFound`, `EntryNotFound`) is generated by string-matching the `NotFound` message. Is the `huggingface_hub` Python client the only consumer of this header, or do other downstream clients depend on it? The answer determines whether the header contract needs formal documentation.
+- The `X-Error-Code` header (`RepoNotFound`, `RevisionNotFound`, `EntryNotFound`) is generated by string-matching the `NotFound` message. Which downstream clients depend on this header, and is it part of the intended external contract or just an internal HF-compatibility mechanism? The answer determines whether the header contract needs formal documentation.
 
 - xet-backend exposes full error messages for all status codes, including 500. Is this intentional for developer convenience during the current development phase, or is it an oversight? If intentional, a configuration flag (e.g., `debug_errors: bool` in `AppConfig`) could control masking per environment.
 
