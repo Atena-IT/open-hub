@@ -60,6 +60,22 @@ def test_xet_write_token_requires_auth_write_access_and_valid_revision(
 
 
 
+def test_xet_write_token_allows_main_for_empty_repo(hf_session, repo_factory):
+    repo_id = repo_factory("xet-write-token-empty", private=True)
+    token_url = f"{hf_session['endpoint']}/api/models/{repo_id}/xet-write-token/main"
+
+    response = requests.get(
+        token_url,
+        headers=_auth_headers(hf_session["token"]),
+        timeout=10,
+    )
+    assert response.status_code == 200
+    assert response.json()["accessToken"]
+    assert response.json()["exp"] > 0
+    assert response.json()["casUrl"]
+
+
+
 def test_lfs_batch_upload_negotiates_xet_or_basic_based_on_requested_transfers(
     hf_session, repo_factory
 ):

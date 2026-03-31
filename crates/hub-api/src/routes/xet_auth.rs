@@ -73,7 +73,11 @@ async fn get_xet_token_impl(
         "write" => auth::ensure_repo_write_access(&repo_row, user_id)?,
         _ => unreachable!(),
     }
-    auth::resolve_repo_revision(&state.pool, &repo_row, requested_revision).await?;
+
+    let allow_empty_main_token = requested_revision == "main" && repo_row.head_sha.is_none();
+    if !allow_empty_main_token {
+        auth::resolve_repo_revision(&state.pool, &repo_row, requested_revision).await?;
+    }
 
     let now = chrono::Utc::now().timestamp() as u64;
     let exp = now + state.config.jwt_expiry_secs;
