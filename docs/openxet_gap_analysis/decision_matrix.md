@@ -1,10 +1,10 @@
 # OpenXet Gap Analysis — Decision Matrix
 
 **Date:** 2026-03-31  
-**Current issue:** [#59](https://github.com/Atena-IT/open-hub/issues/59)  
+**Current issue:** [#60](https://github.com/Atena-IT/open-hub/issues/60)  
 **Primary input:** [`synthesis/gap_analysis_execution_order.md`](synthesis/gap_analysis_execution_order.md)
 
-This document accumulates the decision-round outputs for issues #57-#61. Issues #57-#59 now establish the repository foundation, the transport/history boundary, and the storage direction; later issues will extend this file with adapter-layer and roadmap decisions. The goal is to keep the final direction, rationale, and ordering in one place instead of scattering them across issue comments.
+This document accumulates the decision-round outputs for issues #57-#61. Issues #57-#60 now establish the repository foundation, the transport/history boundary, the storage direction, and the adapter-layer scope; the remaining issue will convert those decisions into a phased roadmap. The goal is to keep the final direction, rationale, and ordering in one place instead of scattering them across issue comments.
 
 ## Decision tracker
 
@@ -13,7 +13,7 @@ This document accumulates the decision-round outputs for issues #57-#61. Issues 
 | [#57](https://github.com/Atena-IT/open-hub/issues/57) | Persistence and object-model foundation | decided | Keep xet-backend's DB-primary repository model as the system of record; do not adopt OpenXet's in-memory-primary git-object foundation | Constrains #58, #59, #60, and the roadmap in #61 |
 | [#58](https://github.com/Atena-IT/open-hub/issues/58) | Git transport and refs/history scope | decided | Keep the HF-compatible API plus xet-core CAS as the supported transport boundary; treat stronger refs/history behavior as targeted DB-native follow-up work rather than Git Smart HTTP work | Constrains #59, #60, and the roadmap in #61 |
 | [#59](https://github.com/Atena-IT/open-hub/issues/59) | LFS/CAS/storage direction | decided | Keep the concrete `S3Client` and the current split between direct-to-S3 LFS and client-driven CAS; prioritize targeted storage helpers and performance work over StorageBackend abstraction or LFS-CAS convergence | Constrains #60 and the roadmap in #61 |
-| [#60](https://github.com/Atena-IT/open-hub/issues/60) | API/auth/web integration direction | pending | — | Depends on #57-#59 |
+| [#60](https://github.com/Atena-IT/open-hub/issues/60) | API/auth/web integration direction | decided | Keep API/auth/web as a thin adapter over the selected backend: `ox_*` bearer tokens for API, cookie-backed sessions for web UI, org support in scope, and community features out of scope for the current roadmap | Constrains the roadmap in #61 |
 | [#61](https://github.com/Atena-IT/open-hub/issues/61) | Phased implementation roadmap approval | pending | — | Depends on #57-#60 |
 
 ## Issue #57 — Persistence and object-model direction
@@ -185,3 +185,61 @@ Within that boundary, storage work should focus on targeted helper methods and D
 - Should `get_stream` be elevated because some regular-file reads still load the full S3 object into memory?
 - Do dedup-query hot paths need caching beyond PostgreSQL indexes at the expected scale?
 - Is there any planned workflow that benefits enough from LFS-CAS dedup to justify reopening the convergence decision?
+
+## Issue #60 — API/auth/web integration direction
+
+Issue #60 resolves the remaining adapter-layer question from the synthesis, including the scope boundary for web/community features.
+
+### Decision statement
+
+xet-backend should keep API/auth/web as a thin adapter layer over the already-selected DB-primary, HF-compatible backend. The API should remain centered on HF-compatible behavior and `ox_*` bearer tokens. The web UI should use separate cookie-backed sessions for interactive pages, with CSRF protection and explicit error handling, rather than a unified multi-mode bearer model.
+
+Within that boundary, organization support is in scope as an access-control and collaboration primitive, but community/product features such as discussions, pull requests, likes, and trending remain out of scope for the current roadmap. The web UI should prioritize utility surfaces — authentication flows, token management, repository browsing, and other bounded operational pages — over platform/community features. Cross-surface error contracts should be standardized as part of the same adapter-layer foundation, advancing alongside session/auth work rather than being deferred behind richer UI features.
+
+### Options considered
+
+| Option | Summary | Strengths | Costs / risks | Decision |
+| --- | --- | --- | --- | --- |
+| A | Keep API/auth/web as a thin adapter: `ox_*` bearer tokens for API, cookie sessions for web UI, org support in scope, community features out of scope | Matches the #57-#59 backend decisions; keeps auth modes purpose-built; prioritizes the highest-value missing adapter features; resolves D4 without expanding into a full product surface | No unified tri-dispatch auth baseline; community/web platform features are deferred; some richer UI surfaces remain optional follow-up work | **Selected** |
+| B | Expand the adapter layer gradually with broader auth modes (including bearer tri-dispatch if justified) and richer utility surfaces while still deferring community features | Leaves room for bearer fallback modes or additional web pages if concrete consumers appear | Still adds auth and UI complexity; should be triggered by identified clients or workflows, not by parity pressure | Deferred follow-up within the selected boundary |
+| C | Aim for an OpenXet-like full product/community surface | Would move xet-backend closer to OpenXet's broader web/community surface | Largest scope expansion; weak alignment with the current HF-compatible target; pushes #60 into roadmap/product-planning territory | Rejected for this decision round |
+
+### Rationale
+
+1. **#57-#59 already fixed the backend semantics the adapter layer must expose.** The repository is DB-primary, the supported transport boundary is HF-compatible API plus xet-core CAS, and storage remains concrete-S3 plus separate LFS/CAS flows. The adapter layer should express those decisions clearly, not hide them behind a broader product surface.
+
+2. **API and web have different auth needs.** `ox_*` bearer tokens already match the API/client compatibility surface, while the web UI needs cookie-backed sessions plus CSRF protection. Treating those as separate, purpose-built modes is simpler than adopting a unified tri-dispatch auth scheme without a concrete consumer.
+
+3. **Organization support is infrastructure; community features are product-surface expansion.** Org management directly supports ownership, permissions, and multi-user collaboration on repositories. Discussions, pull requests, likes, and trending do not serve the current compatibility target and should not be smuggled into the roadmap as if they were required parity items.
+
+4. **The highest-value adapter gaps are foundational.** Session auth, CSRF, login/signup submit flows, token management, org management, and consistent cross-surface error contracts all unlock practical use of the existing backend. They should take precedence over richer UI or community work.
+
+### Consequences for the roadmap issue
+
+- **As a constraint from #60, #61 should phase adapter-layer foundation work ahead of richer UI features.** The near-term path is session auth, CSRF, login/signup submit, token management, org support, and consistent error handling.
+
+- **As a constraint from #60, #61 should keep community/product features out of the committed roadmap.** Discussions, pull requests, likes, and trending remain outside the selected scope unless a later scope change deliberately reopens that choice.
+
+- **As a constraint from #60, #61 should treat `ox_*` bearer auth for API and cookie-backed sessions for web UI as the default auth split.** Bearer tri-dispatch stays a deferred follow-up, not a baseline requirement.
+
+### Phase ordering unlocked by this decision
+
+1. The adapter-layer foundation items already identified in `gap_analysis_execution_order.md` — especially session auth (E1.1), CSRF (E2.1), login/signup submit (E2.2), token management UI (E3.1), org management (E3.5), and the cross-surface error-contract hardening from Tier 0 — should be treated as the near-term path.
+2. Keep `ox_*` bearer auth for API and cookie-backed sessions for web UI as separate default modes; do not treat bearer tri-dispatch as a prerequisite for the roadmap.
+3. Treat richer blob/history/editor pages as follow-up utility features only after the auth/session foundation exists and only within the selected history/storage boundaries.
+4. Keep community/product features off the planned path unless scope changes reopen the decision.
+5. Let [#61](https://github.com/Atena-IT/open-hub/issues/61) convert these boundaries into the final phased roadmap.
+
+### Explicitly not decided here
+
+- Whether bearer tri-dispatch will ever be needed for a concrete client.
+- Which optional utility pages beyond auth/token/org management should ship first.
+- Whether blob/history/editor pages are all needed in the initial roadmap.
+- Whether community/product features should ever be revisited if project scope changes.
+- Whether the web UI should remain primarily a utility/admin surface long-term.
+
+### Open questions carried forward
+
+- Does any planned client actually require username:password bearer fallback or session-token bearer support?
+- What is the minimum useful web UI beyond auth flows, token management, org management, and bounded repository views?
+- Should cross-surface error-contract cleanup be treated as a prerequisite for session/auth rollout, or can those items advance in parallel?
