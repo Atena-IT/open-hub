@@ -2,7 +2,9 @@
 
 This document is the curated source of truth for `huggingface_hub` client compatibility work in this repository.
 
-It distills the raw upstream test analysis from [issue #11](https://github.com/Atena-IT/xet-backend/issues/11), [issue #13](https://github.com/Atena-IT/xet-backend/issues/13), [issue #14](https://github.com/Atena-IT/xet-backend/issues/14), [issue #15](https://github.com/Atena-IT/xet-backend/issues/15), [issue #16](https://github.com/Atena-IT/xet-backend/issues/16), and the analysis-only [PR #12](https://github.com/Atena-IT/xet-backend/pull/12) into an ordered delivery queue that can be maintained on `master`.
+It distills the raw upstream test analysis from [issue #11](https://github.com/Atena-IT/xet-backend/issues/11), [issue #13](https://github.com/Atena-IT/xet-backend/issues/13), [issue #14](https://github.com/Atena-IT/xet-backend/issues/14), [issue #15](https://github.com/Atena-IT/xet-backend/issues/15), [issue #16](https://github.com/Atena-IT/xet-backend/issues/16), and the analysis-only [PR #12](https://github.com/Atena-IT/xet-backend/pull/12) into an ordered delivery queue that can be maintained on `main`.
+
+> Note: the broader Git/LFS/Xet-native expansion is tracked separately under `docs/openxet_gap_analysis/`. This roadmap remains the tracker for lightweight `huggingface_hub` compatibility batches only.
 
 ## Operating rules
 
