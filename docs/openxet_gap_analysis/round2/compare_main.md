@@ -129,7 +129,7 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 - **Auth surface comparison deserves its own Round 2 document.** The auth differences (stateful AuthManager with sessions vs. stateless ox_* only; tri-dispatch bearer vs. single-dispatch; JWT for CAS vs. none in OpenXet CAS) are substantial enough that the `api` comparison should dedicate a section to auth parity mapping.
 
-- **Git Smart HTTP absence blocks certain HF Hub client flows.** While xet-backend intentionally omits native git operations, some `huggingface_hub` library operations (e.g., `Repository.clone()`, `Repository.push_to_hub()` in the git-based code path) require Smart HTTP. If these flows are in scope for future compatibility, the synthesis should flag this as a decision point.
+- **Git Smart HTTP absence is a compatibility boundary.** xet-backend intentionally omits native git operations. Any future compatibility target that depends on Smart HTTP-style clone/fetch/push flows would need that protocol surface, so the synthesis should flag this as a decision point.
 
 - **Registration gating and admin bootstrap are deployment-level concerns.** Both are absent from xet-backend. If multi-tenant or production deployment is in scope, these should be tracked as operational gaps rather than protocol gaps.
 
@@ -137,6 +137,6 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 - Does xet-backend need an explicit body size limit for any endpoint, or is the presigned-URL-to-S3 pattern sufficient for all large upload cases (including future ones)?
 - Should xet-backend implement a registration gate (`DISABLE_REGISTRATION` equivalent) before any multi-tenant deployment, or is this deferred indefinitely?
-- Is the absence of Git Smart HTTP a permanent architectural boundary, or is it expected to be revisited when `huggingface_hub` git-based workflows are tested?
+- Is the absence of Git Smart HTTP a permanent architectural boundary, or is it expected to be revisited if git-based workflows ever enter scope?
 - Should the three separate state types (`CasState`, `HubState`, `WebState`) be unified into a single `AppState` for consistency, or is the current split preferred for crate isolation?
 - OpenXet's router ordering is load-bearing because `git_router` uses `/:owner/:repo/*` wildcards. With no git router in xet-backend, does the current merge order still have precedence risks between HF API resolve routes and Web UI `/{owner}/{repo}` routes?
