@@ -134,13 +134,13 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 - **File reconstruction** -- The `file_mappings` table covers the same purpose as OpenXet's `file_segments`, but uses a single JSONB column (`reconstruction_terms`) instead of one row per segment. Both approaches map a file hash to an ordered sequence of xorb/block ranges.
 
-- **Access token security model** -- Both systems store only a hash of the token, never the raw value. Both return the raw token once at creation. xet-backend stores the hash as BYTEA (binary) rather than hex TEXT.
+- **Access token security model** -- Both systems store only a hash of the token, never the raw value. Both return the raw token once at creation. xet-backend stores the hash as BYTEA (binary) rather than hex TEXT. (Note: the table is `partial` overall due to missing metadata columns documented in the Gaps section.)
 
 - **Proper FK constraints throughout** -- xet-backend uses ON DELETE CASCADE for parent-child relationships (users -> repos, repos -> files, repos -> commits, repos -> lfs_objects, repos -> refs) and ON DELETE RESTRICT for content-addressed data (chunks -> xorbs). OpenXet's collaboration tables lack FK constraints; xet-backend avoids this problem by not implementing those tables.
 
 ## Out-of-scope items
 
-- **Community / collaboration tables** (`discussions`, `discussion_comments`, `discussion_events`, `repo_likes`, `pull_requests`, `pr_comments`, `pr_events`) -- These 7 tables exist in OpenXet but serve only the web UI layer. They are not exposed via the HF-compatible API and are excluded from the current xet-backend compatibility target. Per the cross-module synthesis, these tables also have referential integrity issues (bare `repo_name TEXT` without FK constraints) that would need architectural resolution before adoption.
+- **Community / collaboration tables** (`discussions`, `discussion_comments`, `discussion_events`, `repo_likes`, `pull_requests`, `pr_comments`, `pr_events`) -- These 7 tables exist in OpenXet but serve only the web UI layer. They are not exposed via the HF-compatible API and are excluded from the current xet-backend compatibility target. In OpenXet's codebase, these tables also have referential integrity issues (bare `repo_name TEXT` without FK constraints) that would need architectural resolution before adoption.
 
 - **SQLite-specific patterns** -- OpenXet's `ALTER TABLE ADD COLUMN` silent-failure migration strategy and inline raw-SQL schema are SQLite-specific implementation choices. xet-backend uses PostgreSQL with sqlx migrations, making these patterns irrelevant.
 
