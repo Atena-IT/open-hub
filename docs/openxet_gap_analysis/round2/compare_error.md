@@ -4,7 +4,7 @@
 **Analyst:** DiTo97
 **Date:** 2026-03-31
 **Tracking issue:** [#54](https://github.com/Atena-IT/open-hub/issues/54)
-**Round 1 source:** [`round1/openxet_error.md`](../round1/openxet_error.md)
+**Round 1 source:** `round1/openxet_error.md` (not present on this branch; the Round 1 document lives on the `worktree-issue-45-openxet-error-map` branch)
 
 ---
 
@@ -42,14 +42,14 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 | `ObjectNotFound(String)` variant | `partial` | `AppError::NotFound(String)` | Folded into generic `NotFound`; `classify_not_found_error` infers `EntryNotFound` from message |
 | `GitProtocol(String)` variant | `missing` | (none) | xet-backend has no Git Smart HTTP protocol layer; no equivalent error surface |
 | `AuthRequired` variant (401) | `covered` | `AppError::Unauthorized(String)` | Both map to HTTP 401 |
-| `AuthFailed` variant (403) | `partial` | `AppError::Unauthorized(String)` | xet-backend models failed auth explicitly, but returns 401 rather than OpenXet's 403 |
+| `AuthFailed` variant (403) | `partial` | `AppError::Unauthorized(String)` | xet-backend has no dedicated `AuthFailed` variant; both "auth required" and "auth failed" collapse into `Unauthorized` (401), diverging from OpenXet's 403 |
 | `PermissionDenied` variant (403) | `covered` | `AppError::Forbidden(String)` | Both map to HTTP 403 |
 | `InvalidRequest(String)` variant | `covered` | `AppError::BadRequest(String)` | Same HTTP 400 |
 | `InvalidPath(String)` variant | `partial` | `AppError::BadRequest(String)` | No dedicated variant; path errors use generic `BadRequest` |
 | `Internal(String)` variant | `covered` | `AppError::Internal(String)` | Both map to HTTP 500; xet-backend exposes the message in JSON body; OpenXet masks it |
 | `Io(std::io::Error)` variant | `missing` | (none) | No `#[from]` IO conversion; IO errors are converted manually to `AppError::Internal` at call sites |
 | 5xx message masking | `missing` | (none) | xet-backend returns the actual error message in the JSON body for all variants including `Internal` and `Config` |
-| No-logging inside module | `partial` | `crates/common/src/error.rs:55` | xet-backend centralizes `tracing::error!` inside `IntoResponse`; OpenXet leaves logging to callers |
+| No-logging inside module | `partial` | `crates/common/src/error.rs:55` | xet-backend logs via `tracing::error!` inside `IntoResponse` for errors routed through `AppError`; however, the CAS JWT middleware (`crates/cas-server/src/middleware.rs`) returns bare `StatusCode::UNAUTHORIZED` on auth failure, bypassing `AppError` and its logging entirely. OpenXet leaves logging to callers |
 
 ## Gaps
 
@@ -69,9 +69,9 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 - **`InvalidRef` / `InvalidPath` — collapsed into generic `BadRequest`.** OpenXet has dedicated variants for invalid refs and invalid paths, each producing HTTP 400 with a specific `Display` message. xet-backend uses `AppError::BadRequest(String)` for both, losing the semantic distinction at the type level.
 
-- **`AuthFailed` semantics diverge from upstream.** OpenXet maps `AuthFailed` to HTTP 403, while xet-backend routes failed authentication through `AppError::Unauthorized` (401) and reserves 403 for `Forbidden`. This is a deliberate behavioral divergence rather than full parity, but it is the more HTTP-correct split and should likely remain.
+- **`AuthFailed` semantics diverge from upstream.** OpenXet maps `AuthFailed` to HTTP 403, distinguishing it from `AuthRequired`. xet-backend has no dedicated `AuthFailed` variant; both "auth required" and "credentials wrong" cases map to `AppError::Unauthorized` (401). This collapses two distinct failure modes into one variant and returns a different status code than OpenXet. Whether the 401/403 split is more HTTP-correct depends on interpretation — HTTP 401 signals missing or invalid credentials, while HTTP 403 signals the server understood the credentials but refuses access — and the right choice may depend on client expectations.
 
-- **Logging location differs.** OpenXet keeps the error module as a pure data/response-conversion layer and leaves logging to callers. xet-backend logs every `AppError` inside `IntoResponse` via `tracing::error!`. This is an architectural difference, not a missing capability.
+- **Logging location differs.** OpenXet keeps the error module as a pure data/response-conversion layer and leaves logging to callers. xet-backend logs via `tracing::error!` inside `AppError::IntoResponse`, but this only applies to errors routed through `AppError`. The CAS JWT middleware (`crates/cas-server/src/middleware.rs`) returns bare `StatusCode::UNAUTHORIZED` on auth failure, bypassing `AppError` and its logging. This means CAS auth failures are not logged through the centralized error path.
 
 ## Already covered
 
@@ -93,11 +93,11 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 - **Mask 5xx error messages.** The most significant security gap is that `AppError::Internal` and `AppError::Config` currently expose raw internal error messages (DB errors, S3 SDK errors, Argon2 failures) to API clients in the JSON body. The `IntoResponse` implementation should return a generic `{"error": "Internal server error"}` for 500-class responses while preserving the detailed message in the `tracing::error!` log line. This aligns with OpenXet's approach and is standard practice.
 
-- **Consider typed NotFound sub-variants.** The current `classify_not_found_error` approach of string-matching the message to assign `X-Error-Code` is fragile. Introducing explicit sub-variants (e.g., `RepoNotFound`, `RevisionNotFound`, `EntryNotFound`) would make the classification type-safe and resistant to message wording changes. This likely matters for `huggingface_hub` compatibility, since the local integration suite distinguishes revision-level and entry-level not-found cases even if the exact downstream dependency on `X-Error-Code` is not yet documented here.
+- **Consider typed NotFound sub-variants.** The current `classify_not_found_error` approach of string-matching the message to assign `X-Error-Code` is fragile. Introducing explicit sub-variants (e.g., `RepoNotFound`, `RevisionNotFound`, `EntryNotFound`) would make the classification type-safe and resistant to message wording changes. Whether downstream clients depend on the `X-Error-Code` header values is an open question (see below).
 
 - **Evaluate adding a `Result<T>` alias.** A `pub type Result<T> = std::result::Result<T, AppError>` in the `common` crate would reduce boilerplate across all handler signatures. Low-priority ergonomic improvement.
 
-- **No action needed on the 401/403 split.** xet-backend's mapping (`Unauthorized` -> 401, `Forbidden` -> 403) is already more correct than OpenXet's conflation of `AuthFailed` -> 403. No change required.
+- **Decide on the 401/403 split.** xet-backend collapses `AuthRequired` and `AuthFailed` into a single `Unauthorized` (401) variant, while OpenXet distinguishes them (401 vs 403). This is a behavioral divergence whose correctness depends on client expectations. If downstream clients (or `huggingface_hub`) rely on 403 to distinguish "bad credentials" from "no credentials," xet-backend would need a dedicated variant. Otherwise, the current mapping is acceptable.
 
 - **Implementation ordering.** The 5xx masking fix is independent of all other modules and can be done immediately. Typed NotFound sub-variants touch the `hub-api` and `cas-server` call sites and should be planned as a follow-up.
 
@@ -105,8 +105,8 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 - The `X-Error-Code` header (`RepoNotFound`, `RevisionNotFound`, `EntryNotFound`) is generated by string-matching the `NotFound` message. Which downstream clients depend on this header, and is it part of the intended external contract or just an internal HF-compatibility mechanism? The answer determines whether the header contract needs formal documentation.
 
-- xet-backend exposes full error messages for all status codes, including 500. Is this intentional for developer convenience during the current development phase, or is it an oversight? If intentional, a configuration flag (e.g., `debug_errors: bool` in `AppConfig`) could control masking per environment.
+- xet-backend exposes full error messages for all status codes, including 500. Is this intentional for developer convenience during the current development phase, or is it an oversight?
 
-- OpenXet's `AuthFailed` (credentials wrong) and `PermissionDenied` (valid credentials, insufficient access) both map to HTTP 403. xet-backend collapses the "credentials wrong" case into `Unauthorized` (401). Should xet-backend maintain this 401 mapping (which is more HTTP-correct) even if it diverges from OpenXet's behavior?
+- OpenXet's `AuthFailed` (credentials wrong) and `PermissionDenied` (valid credentials, insufficient access) both map to HTTP 403. xet-backend collapses the "credentials wrong" case into `Unauthorized` (401). Should xet-backend maintain this 401 mapping even if it diverges from OpenXet's behavior, or should it add a dedicated variant to match the upstream 403 semantics?
 
-- The CAS server's JWT middleware (`crates/cas-server/src/middleware.rs`) returns raw `StatusCode::UNAUTHORIZED` (no body, no JSON envelope) on auth failure, bypassing `AppError` entirely. Should this be unified with `AppError::Unauthorized` for consistent error formatting, or is the raw status code acceptable for the CAS internal API?
+- The CAS server's JWT middleware (`crates/cas-server/src/middleware.rs`) returns bare `StatusCode::UNAUTHORIZED` (no body, no JSON envelope, no logging) on auth failure, bypassing `AppError` entirely. This is a concrete gap in error formatting and observability for the CAS internal API.
