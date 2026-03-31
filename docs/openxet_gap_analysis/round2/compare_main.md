@@ -4,7 +4,7 @@
 **Analyst:** DiTo97
 **Date:** 2026-03-31
 **Tracking issue:** [#55](https://github.com/Atena-IT/open-hub/issues/55)
-**Round 1 source:** [`round1/openxet_main.md`](../round1/openxet_main.md)
+**Round 1 source:** `round1/openxet_main.md` (on branch `worktree-issue-46-openxet-main-map`; not yet merged to `main`)
 
 ---
 
@@ -14,7 +14,7 @@ This document compares the OpenXet `main` module (the binary entry point and run
 
 ## xet-backend counterpart
 
-The composition root lives in the `server` crate (`crates/server/src/main.rs`), which depends on five internal crates to assemble the unified binary. The xet-backend workspace splits responsibilities into eight crates, compared to OpenXet's eight `mod` declarations in a single binary crate.
+The composition root lives in the `server` crate (`crates/server/src/main.rs`), which depends on six internal crates to assemble the unified binary. The xet-backend workspace splits responsibilities into eight crates, compared to OpenXet's seven `mod` declarations in a single binary crate.
 
 | Responsibility | xet-backend location | Notes |
 | --- | --- | --- |
@@ -48,7 +48,7 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 | `hf_router()` (HF-compatible API) | `covered` | `hub_api::hub_router()` at `main.rs:64` | Equivalent scope: whoami, repos, tree, preupload, commit, resolve |
 | `git_router()` (Git Smart HTTP) | `missing` | — | xet-backend has no Git Smart HTTP protocol (no upload-pack / receive-pack) |
 | `web_ui::router()` (server-rendered pages) | `covered` | `web_ui::web_router()` at `main.rs:66` | Tera templates; similar route set but smaller scope |
-| `lfs_router()` (LFS batch API) | `covered` | `hub_api::lfs_router()` at `main.rs:65` | Dedicated LFS router (batch, upload, download, verify) |
+| LFS batch API (part of `api` module in OpenXet) | `covered` | `hub_api::lfs_router()` at `main.rs:65` | Structural divergence: OpenXet bundles LFS routes inside the `api` module; xet-backend extracts them into a dedicated LFS router |
 | Security headers (X-Frame-Options, CSP, etc.) | `missing` | — | xet-backend applies only `TraceLayer`; no security headers in the composition root |
 | `DefaultBodyLimit::max(10 GiB)` | `missing` | — | No explicit body limit configured; relies on Axum defaults |
 | Tracing initialisation (`EnvFilter`, debug defaults) | `covered` | `main.rs:13-19` | Uses `tracing_subscriber::fmt` with `EnvFilter`; defaults to `LOG_LEVEL` env var (default `info`) vs OpenXet's `debug` |
