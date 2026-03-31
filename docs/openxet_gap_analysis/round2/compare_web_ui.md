@@ -4,7 +4,7 @@
 **Analyst:** DiTo97
 **Date:** 2026-03-31
 **Tracking issue:** [#53](https://github.com/Atena-IT/open-hub/issues/53)
-**Round 1 source:** `round1/openxet_web_ui.md` (not yet committed to this branch)
+**Round 1 source:** `docs/openxet_gap_analysis/round1/openxet_web_ui.md` (on branch `issue-38-gap-analysis-templates`; not present on this branch)
 
 ---
 
@@ -224,11 +224,11 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 ## Recommendations for synthesis
 
-- **Session auth is the primary blocker.** Without cookie-based sessions, no state-changing web UI handler can be implemented securely. Implementing session management (cookie + in-memory or DB-backed map) should precede all other web UI work.
+- **Session auth blocks state-changing handlers.** Without cookie-based sessions, no state-changing web UI handler can distinguish users. Session management (cookie + in-memory or DB-backed map) is a prerequisite for all other web UI work that requires authentication.
 
-- **CSRF protection should accompany session auth.** Once sessions exist, every state-changing form needs CSRF tokens. xet-backend already has `sha2` in the dependency tree (via `hub-api/auth.rs`), so the CSRF scheme can reuse it.
+- **CSRF protection depends on session auth.** Once sessions exist, every state-changing form needs CSRF tokens. xet-backend already has `sha2` in the dependency tree (via `hub-api/auth.rs`).
 
-- **Git-backed tree browsing is an architectural decision.** xet-backend's tree view queries PostgreSQL `repo_files`, while OpenXet parses git tree objects directly. If xet-backend continues with DB-backed file metadata (as opposed to a git object store), many OpenXet web UI features (blob view, diff, web editor commits) would need different implementations. The synthesis round should decide whether the web UI should read from the DB or from git objects.
+- **Git-backed tree browsing is an architectural decision.** xet-backend's tree view queries PostgreSQL `repo_files`, while OpenXet parses git tree objects directly. If xet-backend continues with DB-backed file metadata (as opposed to a git object store), many OpenXet web UI features (blob view, diff, web editor commits) would need different implementations.
 
 - **Markdown rendering dependencies are declared but unused.** The `pulldown-cmark` and `ammonia` dependencies are already in `Cargo.toml`. Adding README rendering to the repo detail page would stay within the existing web UI stack.
 
