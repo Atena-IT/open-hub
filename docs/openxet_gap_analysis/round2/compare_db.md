@@ -4,7 +4,7 @@
 **Analyst:** DiTo97
 **Date:** 2026-03-31
 **Tracking issue:** [#51](https://github.com/Atena-IT/open-hub/issues/51)
-**Round 1 source:** [`round1/openxet_db.md`](../round1/openxet_db.md)
+**Round 1 source:** `docs/openxet_gap_analysis/round1/openxet_db.md` (on branch `worktree-issue-42-openxet-db-map`; not yet merged to this branch)
 
 ---
 
@@ -51,7 +51,7 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 | OpenXet choice | xet-backend choice | Implications |
 | --- | --- | --- |
-| SQLite (single-file, embedded) | PostgreSQL (server-mode, via PgPool) | Concurrent writes, real transactions, production-grade; requires separate process |
+| SQLite (single-file, embedded) | PostgreSQL (server-mode, via PgPool) | Full concurrent-write support, row-level locking, production-grade; requires separate process |
 | `i32` autoincrement PKs | `UUID` PKs (`gen_random_uuid()`) | Globally unique, no sequence contention; larger storage |
 | `i64` Unix-epoch timestamps | `TIMESTAMPTZ` via `chrono::DateTime<Utc>` | Time-zone-aware, queryable, no manual conversion |
 | Hash columns as `TEXT` (64-char hex) | Hash columns as `BYTEA` (raw 32 bytes) | Compact storage, correct binary comparison; requires hex encoding at API boundary |
@@ -95,7 +95,7 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 | OpenXet pattern | Status | xet-backend pattern | Notes |
 | --- | --- | --- | --- |
 | SeaORM `ActiveModel` insert/update | `covered` | Raw sqlx `query` / `query_as` with `$N` bind params | Hand-written SQL; compile-time verified |
-| Fire-and-forget DB writes (`tokio::spawn`) | `partial` | Synchronous `await?` with `anyhow::Result` propagation | All DB writes are awaited and errors propagated to callers. No silent loss |
+| Fire-and-forget DB writes (`tokio::spawn`) | `partial` | Synchronous `await?` with `anyhow::Result` propagation | Most DB writes are awaited with error propagation. Exception: `touch_token` in `hub-api/src/auth.rs` is awaited but its `Result` is discarded via `let _ =`, silently dropping errors |
 | In-memory DashMap as primary, DB as write-through | `partial` | DB-primary model; all reads hit PostgreSQL | No in-memory cache layer. Simpler consistency model |
 | `load_from_db` startup preload | `missing` | (none) | xet-backend does not preload state into memory at startup. All queries go directly to the DB |
 | Dual construction paths (`with_db` / `with_storage_path`) | `missing` | (none) | Single construction path via `create_pool`. Tests require a real (or test-scoped) PostgreSQL database |
@@ -128,7 +128,7 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 - **Org membership** -- Both systems use a join table (`org_members`) with an FK pair and a free-form `role` column. xet-backend uses a composite PK directly instead of a surrogate ID.
 
-- **Repository metadata** -- xet-backend's `repositories` table is a superset of OpenXet's: it adds `full_name` (unique `"owner/repo"`), `repo_type`, `private`, `description`, and `updated_at`. The `full_name` column eliminates the denormalization problem OpenXet has in its collaboration tables.
+- **Repository metadata columns** -- xet-backend's `repositories` table adds `full_name` (unique `"owner/repo"`), `repo_type`, `private`, `description`, and `updated_at` beyond OpenXet's schema. The `full_name` column eliminates the denormalization problem OpenXet has in its collaboration tables. (Note: the table is `partial` overall due to the `head_sha` vs. symbolic `head` limitation documented in the Gaps section.)
 
 - **CAS block/chunk storage** -- The `xorbs` and `chunks` tables map directly to OpenXet's `cas_blocks` and `cas_chunks`. Naming follows xet-core convention (`xorb` instead of `block`). Hashes are stored as BYTEA (correct binary type) instead of hex TEXT. FK constraint is ON DELETE RESTRICT (safer than CASCADE for content-addressed data).
 
@@ -152,7 +152,7 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 - **LFS lifecycle simplification is intentional but limits dedup.** xet-backend's LFS path skips the `Raw -> Processing -> Chunked` pipeline and stores objects directly in S3. This means LFS objects are not automatically chunked and deduplicated through the CAS pipeline. If CAS-level deduplication of LFS content is a goal, the `lfs_objects` schema needs `status` and the background worker pattern from OpenXet.
 
-- **Token expiry and soft-delete should be added before production.** The missing `expires_at` and `is_active` columns on `access_tokens` mean tokens live forever and cannot be revoked without permanent deletion. This is a security-relevant gap for any multi-user deployment.
+- **Token expiry and soft-delete are absent.** The missing `expires_at` and `is_active` columns on `access_tokens` mean tokens live indefinitely and cannot be revoked without permanent deletion. This is a security-relevant divergence from OpenXet's model for multi-user deployments.
 
 - **`repo_files` and `commits` are xet-backend innovations not present in OpenXet.** These tables simplify Hub API file listing and commit history without requiring full git-object tree-walking. The synthesis should consider whether these tables remain sufficient or whether OpenXet's `git_objects` approach is needed for correctness in edge cases (e.g., directory listing from non-HEAD refs, tag objects).
 
