@@ -228,7 +228,7 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 - **Git-backed tree browsing is an architectural decision.** xet-backend's tree view queries PostgreSQL `repo_files`, while OpenXet parses git tree objects directly. If xet-backend continues with DB-backed file metadata (as opposed to a git object store), many OpenXet web UI features (blob view, diff, web editor commits) would need different implementations. The synthesis round should decide whether the web UI should read from the DB or from git objects.
 
-- **Markdown rendering is zero-cost to enable.** The `pulldown-cmark` and `ammonia` dependencies are already declared in `Cargo.toml`. Adding README rendering to the repo detail page requires only importing these crates and calling them in the handler.
+- **Markdown rendering is low-friction to enable.** The `pulldown-cmark` and `ammonia` dependencies are already declared in `Cargo.toml`. Adding README rendering to the repo detail page would be a focused follow-up that stays within the existing web UI stack.
 
 - **Community features (discussions, PRs, likes) depend on DB schema.** The xet-backend DB schema (managed by sqlx migrations in `db-layer`) does not include community tables (`discussions`, `pull_requests`, `repo_likes`, etc.). Adding these features requires new migrations before handlers can be written.
 
