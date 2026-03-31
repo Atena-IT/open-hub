@@ -4,7 +4,7 @@
 **Analyst:** DiTo97
 **Date:** 2026-03-31
 **Tracking issue:** [#53](https://github.com/Atena-IT/open-hub/issues/53)
-**Round 1 source:** [`round1/openxet_web_ui.md`](../round1/openxet_web_ui.md)
+**Round 1 source:** `round1/openxet_web_ui.md` (not yet committed to this branch)
 
 ---
 
@@ -63,8 +63,8 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 | OpenXet symbol / responsibility | Status | xet-backend equivalent | Notes |
 | --- | --- | --- | --- |
 | `GET /` (home/index) | `covered` | `home` in `pages.rs:25` | Static welcome page; no user-aware content, no repo listing. OpenXet shows auth-aware landing. |
-| `GET /:owner` (user profile) | `covered` | `user_profile` in `pages.rs:110` | Queries DB for user's repos and renders list. Functionally aligned. |
-| `GET /:owner/:repo` (repo detail) | `partial` | `repo_detail` in `pages.rs:141` | Shows file table from DB (`repo_files` table). No tabbed view (files/community/settings). No README rendering. No branch selector. |
+| `GET /:owner` (user profile) | `partial` | `user_profile` in `pages.rs:110` | Queries DB for user's repos and renders list. No visibility filtering: `list_repos_for_owner` returns private repos to unauthenticated visitors. |
+| `GET /:owner/:repo` (repo detail) | `partial` | `repo_detail` in `pages.rs:141` | Shows file table from DB (`repo_files` table). No read-access check: exposes private repo metadata and file listings without auth. No tabbed view, no README rendering, no branch selector. |
 | `GET /-/stats` | `missing` | — | No stats page |
 | `GET /-/search` | `missing` | — | No search page |
 
@@ -72,7 +72,7 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 | OpenXet symbol / responsibility | Status | xet-backend equivalent | Notes |
 | --- | --- | --- | --- |
-| `GET /:owner/:repo/tree/:ref` | `partial` | `repo_tree` in `pages.rs:175` | Queries `repo_files` from DB, not git tree objects. Path parameter extraction uses `Vec<(String, String)>` instead of typed struct. No branch resolution — `revision` param is accepted but not used to resolve git refs. |
+| `GET /:owner/:repo/tree/:ref` | `partial` | `repo_tree` in `pages.rs:175` | Queries `repo_files` from DB, not git tree objects. No read-access check on private repos. Path parameter extraction uses `Vec<(String, String)>` instead of typed struct. No branch resolution — `revision` param is accepted but not used to resolve git refs. |
 | `GET /:owner/:repo/tree/:ref/*path` | `partial` | Same `repo_tree` handler | Path-filtered DB query via `list_files(pool, repo_id, path)`. No git tree parsing. |
 | `GET /:owner/:repo/blob/:ref/*path` (blob view) | `missing` | — | No blob/file content viewer |
 | `GET /:owner/:repo/commits/:ref` (commit list) | `missing` | — | No commit history page |
@@ -154,6 +154,8 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 ### Missing
 
+- **Repo read-access checks in browse handlers.** The `user_profile`, `repo_detail`, and `repo_tree` handlers perform no authentication and no visibility filtering. `list_repos_for_owner` (`repositories.rs:64`) returns all repos (including those with `private = true`), and `find_repo_by_full_name` (`repositories.rs:41`) returns private repos without checking the caller's identity. This means unauthenticated visitors can see private repo metadata (name, description, file paths, sizes) via `GET /:owner`, `GET /:owner/:repo`, and `GET /:owner/:repo/tree/:ref`. OpenXet gates browse handlers on the requesting user's read access to the repository.
+
 - **Cookie-based session auth.** The web UI has no session management. All pages are unauthenticated. OpenXet uses a `token=` cookie with `HttpOnly; SameSite=Lax; Secure` flags and an in-memory session map via `AuthManager`.
 
 - **CSRF protection.** No CSRF tokens in any form. OpenXet implements a custom CSRF scheme with per-process ephemeral HMAC secret, timestamp-bound tokens (1-hour TTL), and constant-time verification.
@@ -190,23 +192,23 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 - **Login/signup forms.** HTML forms render correctly with proper input validation (minlength, maxlength, required). However, submit handlers are stubs that return "coming soon" messages. No actual credential verification, no session cookie creation. The `LoginForm` struct lacks a `csrf_token` field.
 
-- **Repo detail page.** Displays owner, repo name, description, and file table. However, no tabbed interface (files/community/settings), no README rendering, no branch selector, no like count.
+- **User profile page.** `user_profile` queries the DB for the owner's repositories and renders them with name, type badge, private badge, and description. However, `list_repos_for_owner` does not filter by the `private` column, so unauthenticated visitors see private repos. OpenXet gates profile listings on the requesting user's read access.
+
+- **Repo detail page.** Displays owner, repo name, description, and file table. However, no read-access check on private repos, no tabbed interface (files/community/settings), no README rendering, no branch selector, no like count.
 
 - **Tree browsing.** Route exists and accepts revision and path parameters. However, the revision parameter is ignored (no git ref resolution), and files come from DB rather than git objects. No breadcrumb navigation.
 
 - **New repository form.** Form renders with name + private checkbox. Submit is a stub. No namespace/owner selector (OpenXet allows choosing between personal and org namespaces).
 
-- **Template engine.** Tera is used in both. xet-backend improves on OpenXet's approach by using a runtime-configurable `TEMPLATE_DIR` env var (solving OpenXet's Docker deployment issue with compile-time paths) and gracefully falling back on parse errors rather than calling `exit(1)`.
+- **Template engine.** Tera is used in both. xet-backend uses a runtime-configurable `TEMPLATE_DIR` env var instead of OpenXet's compile-time `CARGO_MANIFEST_DIR` path, and falls back to `Tera::default()` on parse errors rather than calling `exit(1)`.
 
 ## Already covered
 
-- **Tera template engine usage.** Both systems use Tera for server-rendered HTML. xet-backend's runtime-configurable template path is an improvement over OpenXet's compile-time `CARGO_MANIFEST_DIR` approach.
+- **Tera template engine usage.** Both systems use Tera for server-rendered HTML. xet-backend uses a runtime-configurable template path; OpenXet uses a compile-time `CARGO_MANIFEST_DIR` path.
 
 - **`/-/` system route prefix.** Both use the `/-/` prefix for system routes to avoid collision with `/:owner` dynamic segments.
 
-- **Static asset serving.** xet-backend serves static files via `tower-http::ServeDir` at `/static`, which is a cleaner separation than OpenXet's inline approach.
-
-- **User profile with repo listing.** `user_profile` queries the DB for the owner's repositories and renders them with name, type badge, private badge, and description. This is functionally equivalent to OpenXet's `user_profile` handler.
+- **Static asset serving.** xet-backend serves static files via `tower-http::ServeDir` at `/static`. OpenXet inlines CSS in templates.
 
 - **Server integration pattern.** The web UI router is merged last in the unified router (after CAS, Hub API, and LFS routers), matching OpenXet's precedence ordering where specific routes come before wildcard `/:owner` routes.
 
@@ -228,13 +230,13 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 - **Git-backed tree browsing is an architectural decision.** xet-backend's tree view queries PostgreSQL `repo_files`, while OpenXet parses git tree objects directly. If xet-backend continues with DB-backed file metadata (as opposed to a git object store), many OpenXet web UI features (blob view, diff, web editor commits) would need different implementations. The synthesis round should decide whether the web UI should read from the DB or from git objects.
 
-- **Markdown rendering is low-friction to enable.** The `pulldown-cmark` and `ammonia` dependencies are already declared in `Cargo.toml`. Adding README rendering to the repo detail page would be a focused follow-up that stays within the existing web UI stack.
+- **Markdown rendering dependencies are declared but unused.** The `pulldown-cmark` and `ammonia` dependencies are already in `Cargo.toml`. Adding README rendering to the repo detail page would stay within the existing web UI stack.
 
 - **Community features (discussions, PRs, likes) depend on DB schema.** The xet-backend DB schema (managed by sqlx migrations in `db-layer`) does not include community tables (`discussions`, `pull_requests`, `repo_likes`, etc.). Adding these features requires new migrations before handlers can be written.
 
-- **Token management UI is low-hanging fruit.** The API-level token operations (generate, hash, verify) already exist in `hub-api/auth.rs`. A web frontend would only need a new page handler and template, once session auth is in place.
+- **Token management UI has API backing.** The API-level token operations (generate, hash, verify) already exist in `hub-api/auth.rs`. A web frontend would need a new page handler and template, plus session auth.
 
-- **Template path approach is already improved.** xet-backend's runtime `TEMPLATE_DIR` env var solves OpenXet's Docker deployment issue (compile-time `CARGO_MANIFEST_DIR` absent in final image). This should be preserved.
+- **Template path approach differs.** xet-backend's runtime `TEMPLATE_DIR` env var avoids a compile-time path dependency. OpenXet's `CARGO_MANIFEST_DIR`-based path is absent in release images that do not ship the source tree.
 
 ## Open questions
 
