@@ -4,7 +4,7 @@
 **Analyst:** DiTo97
 **Date:** 2026-03-31
 **Tracking issue:** [#49](https://github.com/Atena-IT/open-hub/issues/49)
-**Round 1 source:** [`round1/openxet_git.md`](../round1/openxet_git.md)
+**Round 1 source:** `round1/openxet_git.md` (not yet present in this branch)
 
 ---
 
@@ -49,7 +49,7 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 | `Repository::store_object` | `missing` | N/A | Files uploaded to S3 via `files.rs:commit`; no git object storage |
 | `Repository::get_object` | `missing` | N/A | File content retrieved from S3 via `files.rs:resolve_file` |
 | `Repository::has_object` | `missing` | N/A | No object existence check; file existence via `repo_files::find_file` |
-| `Repository::update_ref` | `covered` | `crates/db-layer/src/queries/repo_refs.rs:40-58` | `create_ref` inserts a new ref; HEAD updated via `repositories::update_head_sha` |
+| `Repository::update_ref` | `partial` | `crates/db-layer/src/queries/repo_refs.rs:40-58` | `create_ref` inserts a new ref but cannot advance an existing ref to a new target; no `update_ref` query exists. HEAD is updated separately via `repositories::update_head_sha` |
 | `Repository::delete_ref` | `covered` | `crates/db-layer/src/queries/repo_refs.rs:60-75` | `delete_ref` removes by repo_id + name + ref_type |
 | `Repository::list_refs` | `covered` | `crates/db-layer/src/queries/repo_refs.rs:15-23` | `list_refs` returns all refs for a repo |
 | `Repository::resolve_ref` | `covered` | `crates/hub-api/src/auth.rs:116-144` | `resolve_repo_revision` resolves `main` to `head_sha`, then checks named refs |
@@ -89,7 +89,7 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 - **Ref management.** Refs exist as `repo_refs` DB rows with `name`, `ref_type`, `target_sha`. Basic CRUD (create/list/delete) and resolution are implemented. However: (a) no symbolic ref support; (b) HEAD is stored as `repositories.head_sha` rather than as a ref pointing to `refs/heads/main`; (c) `main` branch is implicit and not stored in `repo_refs` — it is derived from `head_sha`; (d) no ref update (only create + delete); (e) `resolve_repo_revision` does not look up commit SHAs directly in the `commits` table, only named refs plus `head_sha`.
 
-- **Commit creation.** The NDJSON commit handler in `files.rs` creates a `CommitRow` with a synthetic SHA-256 hash (`SHA256(timestamp:message)[..40]`). This has no relationship to git's commit hash algorithm. There is no tree object, no committer metadata, and no support for multi-parent merges.
+- **Commit creation.** The NDJSON commit handler in `files.rs` creates a `CommitRow` with a synthetic SHA-256 hash (`SHA256(timestamp:message)[..40]`). This has no relationship to git's commit hash algorithm. There is no tree object, no committer metadata, and no support for multi-parent merges. Additionally, the `commit` route (`POST .../commit/:revision`) and the `preupload` route (`POST .../preupload/:revision`) both accept a `:revision` URL parameter but never extract or use it — commits always apply against the repository's current `head_sha`, regardless of the revision specified in the URL.
 
 - **Tree structure.** `build_tree_entries` in `files.rs` derives virtual directory/file entries from the flat `repo_files` table using path prefix matching. This approximates `ls-tree` output for the HF API, but (a) directories have no real object IDs (empty string), (b) there are no git mode bits, (c) tree structure is not versioned per-commit — it reflects the latest state of `repo_files` regardless of revision.
 
@@ -99,7 +99,7 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 ## Already covered
 
-- **Ref CRUD operations.** `create_ref`, `delete_ref`, `list_refs`, and `find_ref_by_name` in `repo_refs.rs` provide the same logical operations as `Repository::update_ref`, `delete_ref`, `list_refs`, and `resolve_ref`. The implementation is DB-primary (synchronous, with error propagation) rather than in-memory-primary (fire-and-forget async DB writes), which is architecturally stronger for data integrity.
+- **Ref CRUD operations.** `create_ref`, `delete_ref`, `list_refs`, and `find_ref_by_name` in `repo_refs.rs` cover the create, delete, list, and lookup operations for named refs. Note that `create_ref` is INSERT-only — there is no `update_ref` to advance an existing ref to a new target (see Partial section). The implementation is DB-primary (synchronous, with error propagation) rather than in-memory-primary (fire-and-forget async DB writes).
 
 - **Revision resolution.** `resolve_repo_revision` in `auth.rs` resolves `"main"` to `head_sha`, checks if the revision matches `head_sha` directly, then falls back to named ref lookup. This covers the revision-resolution path exercised by the current `huggingface_hub` compatibility slice in this repo.
 
@@ -129,7 +129,7 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 - **Ref update vs. create-only.** The `repo_refs` table has `UNIQUE(repo_id, name)` but the query module only exposes `create_ref` and `delete_ref` — there is no `update_ref` to advance a branch pointer to a new commit. Currently, non-main branches are created pointing at a commit but never advanced. An `update_ref` query would be needed if branch-level commit workflows are added.
 
-- **xet-backend's DB-primary model avoids several OpenXet bugs.** The fire-and-forget async DB writes in OpenXet (`tokio::spawn(async { let _ = ... })`) silently drop errors. xet-backend's synchronous DB writes with error propagation avoid: (a) the `repo_id = None` race in `create_repo`; (b) silently skipped object/ref inserts; (c) orphaned commits from `initialize_empty` on every restart. This is an architectural advantage.
+- **xet-backend's DB-primary model avoids several OpenXet failure modes.** The fire-and-forget async DB writes in OpenXet (`tokio::spawn(async { let _ = ... })`) silently drop errors. xet-backend's synchronous DB writes with error propagation avoid: (a) the `repo_id = None` race in `create_repo`; (b) silently skipped object/ref inserts; (c) orphaned commits from `initialize_empty` on every restart.
 
 - **If Git Smart HTTP is ever required**, it should be treated as a standalone project, not an incremental addition. It requires: git object model (SHA-1 ObjectId, blob/tree/commit/tag objects), a content-addressed object store, pack file generation/parsing, pkt-line codec, and side-band multiplexing. None of these components exist in xet-backend today.
 
