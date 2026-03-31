@@ -1,10 +1,10 @@
 # OpenXet Gap Analysis — Decision Matrix
 
 **Date:** 2026-03-31  
-**Current issue:** [#60](https://github.com/Atena-IT/open-hub/issues/60)  
+**Current issue:** [#61](https://github.com/Atena-IT/open-hub/issues/61)  
 **Primary input:** [`synthesis/gap_analysis_execution_order.md`](synthesis/gap_analysis_execution_order.md)
 
-This document accumulates the decision-round outputs for issues #57-#61. Issues #57-#60 now establish the repository foundation, the transport/history boundary, the storage direction, and the adapter-layer scope; the remaining issue will convert those decisions into a phased roadmap. The goal is to keep the final direction, rationale, and ordering in one place instead of scattering them across issue comments.
+This document accumulates the decision-round outputs for issues #57-#61. Issues #57-#61 now establish the repository foundation, the transport/history boundary, the storage direction, the adapter-layer scope, and the phased roadmap. The goal is to keep the final direction, rationale, and ordering in one place instead of scattering them across issue comments.
 
 ## Decision tracker
 
@@ -14,7 +14,7 @@ This document accumulates the decision-round outputs for issues #57-#61. Issues 
 | [#58](https://github.com/Atena-IT/open-hub/issues/58) | Git transport and refs/history scope | decided | Keep the HF-compatible API plus xet-core CAS as the supported transport boundary; treat stronger refs/history behavior as targeted DB-native follow-up work rather than Git Smart HTTP work | Constrains #59, #60, and the roadmap in #61 |
 | [#59](https://github.com/Atena-IT/open-hub/issues/59) | LFS/CAS/storage direction | decided | Keep the concrete `S3Client` and the current split between direct-to-S3 LFS and client-driven CAS; prioritize targeted storage helpers and performance work over StorageBackend abstraction or LFS-CAS convergence | Constrains #60 and the roadmap in #61 |
 | [#60](https://github.com/Atena-IT/open-hub/issues/60) | API/auth/web integration direction | decided | Keep API/auth/web as a thin adapter over the selected backend: `ox_*` bearer tokens for API, cookie-backed sessions for web UI, org support in scope, and community features out of scope for the current roadmap | Constrains the roadmap in #61 |
-| [#61](https://github.com/Atena-IT/open-hub/issues/61) | Phased implementation roadmap approval | pending | — | Depends on #57-#60 |
+| [#61](https://github.com/Atena-IT/open-hub/issues/61) | Phased implementation roadmap approval | decided | Approve a bounded roadmap: Tier 0 hardening first, then auth/session and range foundations, then minimum operational web/API surfaces; keep git-native, storage-convergence, and community expansions off the committed path | Marks the implementation order after the decision round |
 
 ## Issue #57 — Persistence and object-model direction
 
@@ -243,3 +243,68 @@ Within that boundary, organization support is in scope as an access-control and 
 - Does any planned client actually require username:password bearer fallback or session-token bearer support?
 - What is the minimum useful web UI beyond auth flows, token management, org management, and bounded repository views?
 - Should cross-surface error-contract cleanup be treated as a prerequisite for session/auth rollout, or can those items advance in parallel?
+
+## Issue #61 — Phased implementation roadmap approval
+
+Issue #61 converts the settled decisions from #57-#60 into the approved implementation sequence for the next execution phase.
+
+### Decision statement
+
+xet-backend should adopt a bounded phased roadmap that starts with independent Tier 0 hardening and concrete storage/DB improvements, then establishes the auth/session and partial-content foundations, then delivers the minimum operational web/API surface selected in #60. After those phases, only bounded utility follow-up work should remain on the table, and only when it fits the already-selected DB-primary, HF-compatible, concrete-S3 architecture.
+
+The committed roadmap should **not** schedule Git Smart HTTP, a git-object migration, StorageBackend abstraction, LFS-CAS convergence, or community/product features such as discussions, pull requests, likes, and trending. Those remain outside the approved path unless a later scope change explicitly reopens the earlier decisions.
+
+### Options considered
+
+| Option | Summary | Strengths | Costs / risks | Decision |
+| --- | --- | --- | --- | --- |
+| A | Approve a bounded roadmap: Tier 0 hardening first, then auth/session and range foundations, then the minimum operational web/API surface, with later utility work kept conditional | Matches the settled decisions from #57-#60; gets immediate correctness/security/performance wins; sequences work around the strongest known blockers; keeps the roadmap aligned with the current HF-compatible target | Some richer history/UI work remains deferred and must be justified by concrete consumers later | **Selected** |
+| B | Approve the same near-term phases but also treat broader DB-native history, bearer tri-dispatch, and more utility surfaces as committed near-term work | Would produce a more ambitious follow-up roadmap without immediately reopening the rejected architectural decisions | Risks overcommitting optional work before the foundation phases land; blurs the line between committed scope and conditional backlog | Deferred follow-up within the selected boundary |
+| C | Approve a parity-oriented roadmap that also schedules git-native transport, storage abstraction/LFS-CAS convergence, and community/product features | Would move the roadmap closer to OpenXet's broader surface area | Directly contradicts the selected boundaries from #57-#60; largest blast radius; weak fit for the current project target | Rejected for this decision round |
+
+### Rationale
+
+1. **#57-#60 already removed the major architectural uncertainty.** The repository foundation, transport boundary, storage direction, and adapter-layer scope are now explicit. The roadmap should exploit that clarity by sequencing implementation, not by reopening those choices.
+
+2. **Tier 0 delivers immediate value with the lowest coordination cost.** The hardening, security, concrete S3 helper, token-lifecycle, and DB performance items improve correctness and operational readiness immediately, and most of them can proceed in parallel.
+
+3. **Session/auth work is the practical gate for almost all in-scope web progress.** Once #60 selected cookie-backed sessions plus CSRF-protected interactive pages, the roadmap became structurally dependent on that foundation. Token management, org management, and any useful authenticated web surface should follow it rather than compete with it.
+
+4. **The roadmap should reflect the chosen scope boundaries, not the full comparison backlog.** Git Smart HTTP, git-object migration, StorageBackend abstraction, LFS-CAS convergence, and community/product features were not merely deferred for capacity reasons; they were kept off the selected path by the decision round itself.
+
+### Consequences for implementation
+
+- **As a constraint from #61, implementation should start with the independent Tier 0 batch and parallelize those items where practical.** That is now the approved immediate work queue.
+
+- **As a constraint from #61, the first committed web/auth phase is session/auth/CSRF/login foundation work plus the minimum operational surfaces unlocked by it.** That includes token management and organization support once the prerequisites exist.
+
+- **As a constraint from #61, storage and protocol follow-up work should stay inside the selected concrete-S3 and HF-compatible boundaries.** Range-aware reconstruction stays on the path; storage abstraction and LFS-CAS convergence do not.
+
+- **As a constraint from #61, any later blob/history/editor work must remain explicit about current DB-backed history limits and must not smuggle Git Smart HTTP or git-object assumptions back into scope.**
+
+### Phase ordering approved by this decision
+
+1. **Phase 0 — Immediate hardening and storage/DB groundwork.** Start with the independent Tier 0 items from `gap_analysis_execution_order.md`: error-contract hardening (E0.1, E0.8, E0.9), server/security controls (E0.2, E0.3, E0.4), token expiry and soft-revocation (E0.11), concrete S3 helpers (E0.5, E0.6, E0.7), and chunk batch insert optimization (E0.10). These are the first committed implementation batch and should be parallelized where practical.
+
+2. **Phase 1 — Foundation features unlocked by Phase 0.** Deliver cookie-backed session auth for the web UI (E1.1), range-aware reconstruction (E1.2), and any cross-surface error-contract standardization needed to apply the Tier 0 hardening consistently across the selected API/web split. This phase establishes the auth and partial-content foundations without expanding the transport or storage boundaries.
+
+3. **Phase 2 — Minimum operational web/API surface within the approved scope.** Deliver CSRF protection (E2.1), real login/signup submit flows (E2.2), token management UI (E3.1), and organization management (E3.5). Within this phase, CSRF and login/signup submit should land before the token and organization surfaces that depend on those prerequisites. Although some of these items were placed in later synthesis tiers, #60 makes them part of the minimum useful adapter-layer surface once the session/auth prerequisites exist.
+
+4. **Phase 3 — Bounded utility follow-ups, only after Phases 0-2 are stable and only when a concrete consumer exists.** Candidate items include blob views (E3.3) and commit/history pages (E3.4) that clearly document current DB-backed history limits. Web editing (E3.2), branch creation (E3.8), stronger revision semantics, `get_stream`, dedup-query caching, and bearer tri-dispatch remain conditional follow-up items rather than baseline commitments.
+
+5. **Outside the committed roadmap.** Git Smart HTTP (E4.5), git-object migration, StorageBackend abstraction, LFS-CAS convergence / LFS background chunking (E3.7), and community/product features such as discussions, pull requests, likes, and trending remain out of scope for the approved roadmap unless a later decision round explicitly reopens those boundaries.
+
+### Explicitly not decided here
+
+- The exact internal ordering of independent Phase 0 items.
+- Which conditional Phase 3 utility items, if any, should ship first after the committed phases.
+- Whether `get_stream` or dedup-query caching should be elevated later based on observed scale or memory pressure.
+- Whether DB-native history follow-up work ever becomes necessary for a concrete workflow.
+- Whether any future scope change should reopen the excluded git-native, storage-convergence, or community/product work.
+
+### Open questions carried forward
+
+- Is `get_stream` significant enough to pull forward if large regular-file reads become a real operational problem?
+- Do expected workflows require non-HEAD views or stronger commit identifiers beyond the currently selected DB-backed model?
+- Does any concrete client ever require bearer tri-dispatch rather than the selected `ox_*` API tokens plus cookie-backed web sessions?
+- Which bounded repository utility surface is most valuable after the committed phases: blob view, history view, editor flows, or branch management?
