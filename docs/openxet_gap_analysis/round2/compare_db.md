@@ -1,4 +1,4 @@
-# Round 2 Comparison --- `db`
+# Round 2 Comparison — `db`
 
 **OpenXet commit:** `a5b6dfcdf5e806a5a29cb893f0d79d733bea309b`
 **Analyst:** DiTo97
@@ -64,15 +64,15 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 | --- | --- | --- | --- |
 | `users` | `covered` | `users` (002) | UUID PK, added `full_name`, `avatar_url`, `updated_at`. Dual-purpose user/org pattern preserved (`is_org` flag). Missing: `display_name` (replaced by `full_name`). Email is UNIQUE in xet-backend |
 | `org_members` | `covered` | `org_members` (002) | Composite PK `(org_id, user_id)` instead of surrogate. Same role model. CASCADE on both FKs |
-| `repositories` | `covered` | `repositories` (002) | Added `full_name` (UNIQUE, `"owner/repo"`), `repo_type` (model/dataset/space), `private` flag, `description`, `updated_at`. Uses `head_sha` (nullable) instead of `head` (string). No symbolic HEAD |
-| `git_refs` | `covered` | `repo_refs` (003) | UUID PK (not string composite). Added `ref_type` column (branch/tag). No `is_symbolic` / `symbolic_target` columns. UNIQUE on `(repo_id, name)` |
+| `repositories` | `partial` | `repositories` (002) | Added `full_name` (UNIQUE, `"owner/repo"`), `repo_type` (model/dataset/space), `private` flag, `description`, `updated_at`. Uses `head_sha` (nullable) instead of `head` (string). No symbolic HEAD |
+| `git_refs` | `partial` | `repo_refs` (003) | UUID PK (not string composite). Added `ref_type` column (branch/tag). No `is_symbolic` / `symbolic_target` columns. UNIQUE on `(repo_id, name)` |
 | `git_objects` | `missing` | (none) | xet-backend does not track individual git objects in the DB. No blob/tree/commit/tag object store at the DB level |
 | `lfs_objects` | `partial` | `lfs_objects` (002) | Scoped to `repo_id` (FK) instead of global OID PK. No `status`/`raw_path` columns -- no background chunking lifecycle. Stores `s3_key` directly |
 | `lfs_chunks` | `missing` | (none) | xet-backend does not maintain an ordered chunk map for LFS objects. LFS lifecycle is simpler (direct S3) |
 | `cas_blocks` | `covered` | `xorbs` (001) | Renamed from "block" to "xorb" (matching xet-core terminology). BYTEA hash PK. Stores `s3_key` + `size_bytes`. No `chunk_count` column |
 | `cas_chunks` | `covered` | `chunks` (001) | BYTEA hash PK. FK to `xorbs(hash)` with ON DELETE RESTRICT (not CASCADE). Stores `chunk_index_in_xorb`, `byte_range_start`, `unpacked_segment_bytes` instead of `offset_in_block` + `size` |
 | `file_segments` | `covered` | `file_mappings` (001) | Different model: xet-backend stores reconstruction as a single JSONB array per file (via `ReconstructionTerm`), not one row per segment. More compact, less relational |
-| `access_tokens` | `covered` | `access_tokens` (002) | BYTEA `token_hash` (not hex TEXT). `TEXT[]` scopes instead of comma-separated. No `token_prefix`, `description`, `expires_at`, `is_active` columns. Hard-delete only (no soft-delete revocation) |
+| `access_tokens` | `partial` | `access_tokens` (002) | BYTEA `token_hash` (not hex TEXT). `TEXT[]` scopes instead of comma-separated. No `token_prefix`, `description`, `expires_at`, `is_active` columns. Hard-delete only (no soft-delete revocation) |
 | `discussions` | `out-of-scope` | (none) | Community feature; not in current compatibility target |
 | `discussion_comments` | `out-of-scope` | (none) | Community feature |
 | `discussion_events` | `out-of-scope` | (none) | Community feature |
@@ -95,8 +95,8 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 | OpenXet pattern | Status | xet-backend pattern | Notes |
 | --- | --- | --- | --- |
 | SeaORM `ActiveModel` insert/update | `covered` | Raw sqlx `query` / `query_as` with `$N` bind params | Hand-written SQL; compile-time verified |
-| Fire-and-forget DB writes (`tokio::spawn`) | `covered` | Synchronous `await?` with `anyhow::Result` propagation | All DB writes are awaited and errors propagated to callers. No silent loss |
-| In-memory DashMap as primary, DB as write-through | `covered` | DB-primary model; all reads hit PostgreSQL | No in-memory cache layer. Simpler consistency model |
+| Fire-and-forget DB writes (`tokio::spawn`) | `partial` | Synchronous `await?` with `anyhow::Result` propagation | All DB writes are awaited and errors propagated to callers. No silent loss |
+| In-memory DashMap as primary, DB as write-through | `partial` | DB-primary model; all reads hit PostgreSQL | No in-memory cache layer. Simpler consistency model |
 | `load_from_db` startup preload | `missing` | (none) | xet-backend does not preload state into memory at startup. All queries go directly to the DB |
 | Dual construction paths (`with_db` / `with_storage_path`) | `missing` | (none) | Single construction path via `create_pool`. Tests require a real (or test-scoped) PostgreSQL database |
 
