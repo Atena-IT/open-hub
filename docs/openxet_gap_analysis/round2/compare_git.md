@@ -4,7 +4,7 @@
 **Analyst:** DiTo97
 **Date:** 2026-03-31
 **Tracking issue:** [#49](https://github.com/Atena-IT/open-hub/issues/49)
-**Round 1 source:** `round1/openxet_git.md` (not yet present in this branch)
+**Round 1 source:** `round1/openxet_git.md` (on branch `worktree-issue-40-openxet-git-map`; not yet merged to this branch)
 
 ---
 
@@ -79,11 +79,11 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 - **Pack file format.** No generation, parsing, or pkt-line codec. Without Smart HTTP protocol support these are not needed, but they are a prerequisite if git client interop is ever required.
 
-- **SHA-1 object identity.** xet-backend uses SHA-256 throughout (content hashes for files, synthetic hashes for commits). There is no SHA-1 usage. This is arguably a strength (avoiding SHA-1 weaknesses), but it means the commit SHA produced by xet-backend is not a valid git commit hash.
+- **SHA-1 object identity.** xet-backend uses SHA-256 throughout (content hashes for files, synthetic hashes for commits). There is no SHA-1 usage. The commit SHAs produced by xet-backend are not valid git commit hashes.
 
 - **Commit graph structure.** Commits are flat DB rows with a single `parent_sha` column. There is no support for merge commits (multiple parents), no tree-id reference in the commit, and no graph traversal (BFS or otherwise). `walk_commits` has no counterpart.
 
-- **`initialize_empty`.** New repositories start with no commits and no objects. There is no initial empty tree/commit bootstrap, which sidesteps the OpenXet bug of orphaned commits on restart but also means a newly created repo has `head_sha = NULL`.
+- **`initialize_empty`.** New repositories start with no commits and no objects. There is no initial empty tree/commit bootstrap. Unlike OpenXet, which re-runs `initialize_empty` on every restart (creating orphaned commits), xet-backend avoids this by not having an initialization step. A newly created repo has `head_sha = NULL`.
 
 ### Partial
 
@@ -117,13 +117,13 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 - **SHA-1 object identity.** xet-backend's use of SHA-256 throughout is a deliberate design choice aligned with the Xet CAS protocol. Introducing SHA-1 would add a second hash namespace and bring known cryptographic weaknesses.
 
-- **On-disk git object storage.** OpenXet's non-standard on-disk format (`[type_code][raw_data]`) is itself incompatible with standard git tooling. xet-backend's S3-backed storage avoids this problem entirely by not pretending to be a git object store.
+- **On-disk git object storage.** OpenXet's non-standard on-disk format (`[type_code][raw_data]`) is itself incompatible with standard git tooling. xet-backend uses S3-backed storage and does not implement a git object store.
 
 ## Recommendations for synthesis
 
 - **The absence of Git Smart HTTP is not a gap for the current HF Hub compatibility target.** The compatibility slice exercised in this repo uses the HF API for commits, tree listing, and file resolution rather than native `git clone`/`git push` flows, and xet-backend implements that surface. This should be explicitly documented as a design boundary, not a missing feature.
 
-- **Commit integrity.** xet-backend's synthetic commit SHA (`SHA256(timestamp:message)[..40]`) is a weak identifier: it has no relationship to the commit content, no tree reference, and is truncated. If commit SHAs are ever used for deduplication, caching, or cross-system references, they should be derived from actual commit content (files, parent, metadata). This is a low-priority improvement unless commit portability is needed.
+- **Commit integrity.** xet-backend's synthetic commit SHA (`SHA256(timestamp:message)[..40]`) has no relationship to the commit content, no tree reference, and is truncated to 40 hex characters. If commit SHAs are ever used for deduplication, caching, or cross-system references, they should be derived from actual commit content (files, parent, metadata). This is a low-priority improvement unless commit portability is needed.
 
 - **Tree versioning per commit is absent.** The current `repo_files` table stores only the latest file state. There is no snapshot of the tree at a specific commit. This means `resolve_file` with a non-HEAD revision will still return the latest file content, not the file as it existed at that commit. This is a functional gap if multi-branch or historical file access is needed, but does not affect the single-branch `huggingface_hub` roundtrip.
 
