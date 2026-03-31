@@ -1,18 +1,18 @@
 # OpenXet Gap Analysis — Decision Matrix
 
 **Date:** 2026-03-31  
-**Current issue:** [#57](https://github.com/Atena-IT/open-hub/issues/57)  
+**Current issue:** [#58](https://github.com/Atena-IT/open-hub/issues/58)  
 **Primary input:** [`synthesis/gap_analysis_execution_order.md`](synthesis/gap_analysis_execution_order.md)
 
-This document accumulates the decision-round outputs for issues #57-#61. Issue #57 establishes the repository and persistence foundation; later issues will extend this file with transport/history, storage, adapter-layer, and roadmap decisions. The goal is to keep the final direction, rationale, and ordering in one place instead of scattering them across issue comments.
+This document accumulates the decision-round outputs for issues #57-#61. Issues #57 and #58 now establish the repository foundation and the transport/history boundary; later issues will extend this file with storage, adapter-layer, and roadmap decisions. The goal is to keep the final direction, rationale, and ordering in one place instead of scattering them across issue comments.
 
 ## Decision tracker
 
 | Issue | Decision area | Status | Selected direction | Downstream effect |
 | --- | --- | --- | --- | --- |
 | [#57](https://github.com/Atena-IT/open-hub/issues/57) | Persistence and object-model foundation | decided | Keep xet-backend's DB-primary repository model as the system of record; do not adopt OpenXet's in-memory-primary git-object foundation | Constrains #58, #59, #60, and the roadmap in #61 |
-| [#58](https://github.com/Atena-IT/open-hub/issues/58) | Git transport and refs/history scope | pending | — | Depends on #57 |
-| [#59](https://github.com/Atena-IT/open-hub/issues/59) | LFS/CAS/storage direction | pending | — | Depends on #57 and partially on #58 |
+| [#58](https://github.com/Atena-IT/open-hub/issues/58) | Git transport and refs/history scope | decided | Keep the HF-compatible API plus xet-core CAS as the supported transport boundary; treat stronger refs/history behavior as targeted DB-native follow-up work rather than Git Smart HTTP work | Constrains #59, #60, and the roadmap in #61 |
+| [#59](https://github.com/Atena-IT/open-hub/issues/59) | LFS/CAS/storage direction | pending | — | Depends on #57 and #58 |
 | [#60](https://github.com/Atena-IT/open-hub/issues/60) | API/auth/web integration direction | pending | — | Depends on #57-#59 |
 | [#61](https://github.com/Atena-IT/open-hub/issues/61) | Phased implementation roadmap approval | pending | — | Depends on #57-#60 |
 
@@ -73,3 +73,59 @@ If future requirements demand richer history semantics, tree snapshots, or diff 
 - Do any target workflows require historical file contents at non-HEAD revisions, or is HEAD-only behavior acceptable for the intended compatibility scope?
 - Does any downstream consumer require stable, content-derived commit identifiers rather than the current synthetic SHA-style identifiers?
 - If richer history becomes necessary later, is DB-native snapshot/versioning support sufficient, or would that requirement justify reopening the git-object decision?
+
+## Issue #58 — Git transport and refs/history direction
+
+### Decision statement
+
+xet-backend should keep the HuggingFace-compatible API plus the xet-core CAS protocol as its supported transport boundary. Native Git Smart HTTP (`info/refs`, `upload-pack`, `receive-pack`, pack files, pkt-line, and SHA-1 object identity) remains out of scope for the current roadmap.
+
+Within that boundary, refs/history improvements should be treated as targeted DB-native follow-up work only when a concrete workflow requires them. Possible follow-up items include branch-pointer advancement, stronger commit identifiers, or explicit non-HEAD snapshot support, but none of those imply a shift to native Git transport.
+
+### Options considered
+
+| Option | Summary | Strengths | Costs / risks | Decision |
+| --- | --- | --- | --- | --- |
+| A | Keep the HF-compatible API plus DB-backed refs/history as the target surface | Matches the issue-56 synthesis; fits the #57 DB-primary foundation; avoids reopening the persistence choice; aligns with the currently exercised compatibility slice | No native `git clone` / `git fetch` / `git push`; historical snapshots remain limited unless added separately | **Selected** |
+| B | Expand DB-backed refs/history fidelity without adopting Git Smart HTTP | Allows future branch advancement, stronger revision semantics, or non-HEAD snapshot retrieval while staying within the selected DB-primary model | Still requires explicit schema/query design; should be triggered by concrete workflows, not assumed as baseline parity | Deferred follow-up within the selected boundary |
+| C | Add Git Smart HTTP and full git-native history semantics | Would cover clone/fetch/push, packet-line exchange, pack files, and native git object identity | Reopens the foundation choice from #57; largest implementation blast radius; outside the current HF-compatible target | Rejected for this decision round |
+
+### Rationale
+
+1. **The synthesis already frames Smart HTTP as a boundary decision, not a missing baseline feature.** Issue #56 explicitly places the transport/history decision after the persistence choice and characterizes Git Smart HTTP as outside the current HF-compatible target scope while leaving the formal settlement to #58.
+
+2. **#57 already removed the strongest argument for a git-native transport layer.** Once the repository foundation stays DB-primary, adding Smart HTTP would no longer be an incremental transport enhancement; it would become a cross-cutting architectural expansion.
+
+3. **The currently exercised compatibility slice does not need native git transport.** The analysis already covers the active boundary: HF-style commits, ref listing, file resolution, and xet-core CAS flows. Those are the relevant transport surfaces today.
+
+4. **The remaining refs/history gaps are narrower than a transport rewrite.** Branch-pointer advancement, non-HEAD file retrieval, and stronger commit identity semantics are real questions, but they can be evaluated as DB-native enhancements if a concrete consumer appears.
+
+### Consequences for downstream issues
+
+- **As a constraint from #58, #59 should evaluate LFS/CAS/storage without assuming pack files, git-object storage, or native git upload/download paths.** Storage decisions should start from the selected HF-compatible transport boundary.
+
+- **As a constraint from #58, #60 should document DB-backed history limits explicitly in API/auth/web surfaces.** Features that imply branch semantics, commit history, or non-HEAD file views must state those assumptions directly instead of inheriting git-native expectations.
+
+- **As a constraint from #58, #61 should keep Git Smart HTTP and full git-native history out of the committed phased roadmap unless a later scope change explicitly reopens this decision.**
+
+### Phase ordering unlocked by this decision
+
+1. Continue Tier 0 hardening and any #57-compatible DB-native improvements that have a clear consumer.
+2. Treat branch advancement, non-HEAD snapshot support, and content-derived commit identifiers as optional follow-up design items, not transport commitments.
+3. Resolve [#59](https://github.com/Atena-IT/open-hub/issues/59) assuming the HF-compatible API plus xet-core CAS remain the only supported transport surfaces.
+4. Resolve [#60](https://github.com/Atena-IT/open-hub/issues/60) with explicit DB-backed history semantics and no implicit clone/push support.
+5. Let [#61](https://github.com/Atena-IT/open-hub/issues/61) encode this as a roadmap boundary rather than reopening Smart HTTP by default.
+
+### Explicitly not decided here
+
+- Whether DB-native history improvements should be implemented immediately or deferred.
+- Whether non-HEAD file retrieval is a real product requirement.
+- Whether commit identifiers should become content-derived.
+- Whether branch-pointer advancement should be added before web or org features.
+- Whether a future scope change should reopen #57 and #58 together.
+
+### Open questions carried forward
+
+- Does any planned workflow require branch advancement or commit-history traversal beyond the current HF-compatible slice?
+- Is non-HEAD file resolution a real product requirement, or only a theoretical parity gap?
+- If a later scope change demands native git transport, should that reopen #57 and #58 together rather than incrementally?
