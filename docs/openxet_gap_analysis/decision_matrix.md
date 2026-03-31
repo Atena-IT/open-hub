@@ -1,10 +1,10 @@
 # OpenXet Gap Analysis — Decision Matrix
 
 **Date:** 2026-03-31  
-**Current issue:** [#58](https://github.com/Atena-IT/open-hub/issues/58)  
+**Current issue:** [#59](https://github.com/Atena-IT/open-hub/issues/59)  
 **Primary input:** [`synthesis/gap_analysis_execution_order.md`](synthesis/gap_analysis_execution_order.md)
 
-This document accumulates the decision-round outputs for issues #57-#61. Issues #57 and #58 now establish the repository foundation and the transport/history boundary; later issues will extend this file with storage, adapter-layer, and roadmap decisions. The goal is to keep the final direction, rationale, and ordering in one place instead of scattering them across issue comments.
+This document accumulates the decision-round outputs for issues #57-#61. Issues #57-#59 now establish the repository foundation, the transport/history boundary, and the storage direction; later issues will extend this file with adapter-layer and roadmap decisions. The goal is to keep the final direction, rationale, and ordering in one place instead of scattering them across issue comments.
 
 ## Decision tracker
 
@@ -12,7 +12,7 @@ This document accumulates the decision-round outputs for issues #57-#61. Issues 
 | --- | --- | --- | --- | --- |
 | [#57](https://github.com/Atena-IT/open-hub/issues/57) | Persistence and object-model foundation | decided | Keep xet-backend's DB-primary repository model as the system of record; do not adopt OpenXet's in-memory-primary git-object foundation | Constrains #58, #59, #60, and the roadmap in #61 |
 | [#58](https://github.com/Atena-IT/open-hub/issues/58) | Git transport and refs/history scope | decided | Keep the HF-compatible API plus xet-core CAS as the supported transport boundary; treat stronger refs/history behavior as targeted DB-native follow-up work rather than Git Smart HTTP work | Constrains #59, #60, and the roadmap in #61 |
-| [#59](https://github.com/Atena-IT/open-hub/issues/59) | LFS/CAS/storage direction | pending | — | Depends on #57 and #58 |
+| [#59](https://github.com/Atena-IT/open-hub/issues/59) | LFS/CAS/storage direction | decided | Keep the concrete `S3Client` and the current split between direct-to-S3 LFS and client-driven CAS; prioritize targeted storage helpers and performance work over StorageBackend abstraction or LFS-CAS convergence | Constrains #60 and the roadmap in #61 |
 | [#60](https://github.com/Atena-IT/open-hub/issues/60) | API/auth/web integration direction | pending | — | Depends on #57-#59 |
 | [#61](https://github.com/Atena-IT/open-hub/issues/61) | Phased implementation roadmap approval | pending | — | Depends on #57-#60 |
 
@@ -129,3 +129,59 @@ Within that boundary, refs/history improvements should be treated as targeted DB
 - Does any planned workflow require branch advancement or commit-history traversal beyond the current HF-compatible slice?
 - Is non-HEAD file resolution a real product requirement, or only a theoretical parity gap?
 - If a later scope change demands native git transport, should that reopen #57 and #58 together rather than incrementally?
+
+## Issue #59 — LFS/CAS/storage direction
+
+Issue #59 resolves the two storage-side decision points surfaced by the synthesis: D1 (storage abstraction) and D2 (LFS-CAS integration).
+
+### Decision statement
+
+xet-backend should keep its concrete `S3Client`-based storage layer and its current split between direct-to-S3 LFS uploads and client-driven CAS/xorb storage. It should **not** introduce an OpenXet-style `StorageBackend` trait or a server-side LFS-to-CAS chunking pipeline as part of the current roadmap.
+
+Within that boundary, storage work should focus on targeted helper methods and DB/query improvements that support the chosen DB-primary and HF-compatible transport model. That includes concrete S3 helpers (`delete`, `get_range`, `list`, and possibly `get_stream`) plus DB-backed performance work such as chunk batch inserts and range-aware reconstruction.
+
+### Options considered
+
+| Option | Summary | Strengths | Costs / risks | Decision |
+| --- | --- | --- | --- | --- |
+| A | Keep the concrete `S3Client` and the current split between direct-to-S3 LFS and client-driven CAS | Matches the #57 DB-primary foundation and the #58 HF-compatible transport boundary; keeps the storage model simple; focuses work on concrete helpers and measured performance fixes | No backend abstraction today; no automatic LFS/CAS dedup convergence; some helper methods still need to be added explicitly | **Selected** |
+| B | Preserve the current architecture but revisit narrow storage abstractions or targeted storage enhancements later | Leaves room for helper-method expansion, `get_stream`, caching, or a future trait if a real second backend or testability pressure appears | Adds design and maintenance cost if introduced too early; should be triggered by concrete needs rather than parity goals | Deferred follow-up within the selected boundary |
+| C | Introduce a StorageBackend abstraction and converge LFS into a server-side CAS chunking pipeline | Would move xet-backend closer to OpenXet's storage surface and could enable future LFS dedup integration | Highest complexity; adds worker/lifecycle coordination; not required by the current DB-primary + HF-compatible architecture | Rejected for this decision round |
+
+### Rationale
+
+1. **#57 and #58 already fixed the architectural boundaries that storage must serve.** The repository remains DB-primary, and the transport boundary remains the HF-compatible API plus xet-core CAS. That sharply reduces the case for a more general storage abstraction or git-oriented storage pipeline.
+
+2. **The current deployment model is concrete, not polymorphic.** The synthesis already notes that the concrete `S3Client` approach matches the current Docker Compose and MinIO deployment. There is no accepted second backend that justifies paying the abstraction cost now.
+
+3. **LFS and CAS currently solve different transport paths.** LFS uses direct-to-S3 flows, while CAS assumes client-side chunking and xorb upload. Converging them would add background-worker and lifecycle complexity that the current compatibility boundary does not require.
+
+4. **The highest-value storage gaps are targeted, not architectural.** The concrete missing items already identified in the synthesis — `S3Client::delete`, `get_range`, `list`, chunk batch inserts, and range-aware reconstruction — can be addressed without introducing a new abstraction layer or changing the LFS/CAS split.
+
+### Consequences for downstream issues
+
+- **As a constraint from #59, #60 should assume direct-to-S3 LFS and client-driven CAS remain separate backend flows.** Any API/auth/web behavior built on top of storage should describe those paths explicitly instead of implying a unified chunking pipeline.
+
+- **As a constraint from #59, #61 should phase concrete storage hardening and performance work ahead of any optional abstraction or convergence experiments.** The selected direction makes helper methods and bounded query/storage improvements the near-term path.
+
+### Phase ordering unlocked by this decision
+
+1. The storage-focused Tier 0 and Tier 1 items in `gap_analysis_execution_order.md` (E0.5, E0.6, E0.7, E0.10, and E1.2) are now unblocked and can proceed immediately.
+2. Treat `get_stream`, dedup-query caching, and other low-level storage optimizations as targeted follow-up items only when backed by concrete need; for now the potential regular-file OOM concern remains tracked as an open question rather than a Tier 0 commitment.
+3. Keep `StorageBackend` abstraction and LFS-CAS convergence off the planned path unless a real second backend or dedup requirement appears.
+4. Resolve [#60](https://github.com/Atena-IT/open-hub/issues/60) assuming the selected direct-to-S3 LFS + client-driven CAS split remains in place.
+5. Let [#61](https://github.com/Atena-IT/open-hub/issues/61) encode this as a roadmap boundary rather than reopening storage abstraction or convergence by default.
+
+### Explicitly not decided here
+
+- Whether `get_stream` should be promoted into the near-term implementation list.
+- Whether a second storage backend will ever enter scope.
+- Whether dedup-query caching beyond PostgreSQL indexes is needed.
+- Whether GC/audit tooling should be built now or later.
+- Whether LFS-CAS convergence should ever be reconsidered if workflow scope changes.
+
+### Open questions carried forward
+
+- Should `get_stream` be elevated because some regular-file reads still load the full S3 object into memory?
+- Do dedup-query hot paths need caching beyond PostgreSQL indexes at the expected scale?
+- Is there any planned workflow that benefits enough from LFS-CAS dedup to justify reopening the convergence decision?
