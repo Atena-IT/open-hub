@@ -195,9 +195,9 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 - **AppState structure.** xet-backend splits state into `HubState` and CAS `AppState`, both DB-backed. The OpenXet pattern of in-memory DashMaps for repos, CAS objects, and session tokens is absent. xet-backend is DB-primary for all reads.
 
-- **Bearer token resolution.** `resolve_bearer_token` only handles `ox_*` prefix tokens. OpenXet's tri-dispatch (ox_* -> user:pass -> session map) is reduced to a single path, which may affect `huggingface_hub` clients that rely on the `username:password` Bearer token shortcut.
+- **Bearer token resolution.** `resolve_bearer_token` only handles `ox_*` prefix tokens. OpenXet's tri-dispatch (ox_* -> user:pass -> session map) is reduced to a single path, so xet-backend does not currently match the broader bearer-token surface that OpenXet exposes. The practical downstream impact of the missing `username:password` shortcut is not verified here.
 
-- **CommitResponse.** Missing `success` boolean and `hookOutput` string fields that the Python client may read.
+- **CommitResponse.** Missing `success` boolean and `hookOutput` string fields that OpenXet returns. Downstream dependence on those fields is not verified here.
 
 - **WhoamiResponse.** The `orgs` field is always an empty array. OpenXet populates this from the org membership database.
 
@@ -234,13 +234,13 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 ## Recommendations for synthesis
 
-- **Bearer tri-dispatch is a compatibility risk.** The `huggingface_hub` Python client can pass `username:password` as a Bearer token. xet-backend rejects this format, which would cause authentication failures for clients that use this shortcut instead of first obtaining an ox_* token. Consider implementing the colon-format fallback in `resolve_bearer_token`.
+- **Bearer tri-dispatch is a compatibility decision point.** OpenXet accepts a broader set of bearer token formats (`ox_*`, `username:password`, session token) than xet-backend, which only accepts `ox_*`. If compatibility work needs the OpenXet-style colon-format shortcut, the missing piece is fallback parsing in `resolve_bearer_token`; practical downstream reliance still needs verification.
 
 - **Organization support is a prerequisite for collaborative repos.** Without org membership, write access is limited to the repo owner. Any multi-user workflow requires org CRUD and membership-based permission checks.
 
 - **LFS multipart is needed for large objects.** The lack of multipart upload support limits LFS object size to the S3 single-part maximum (5 GiB). If large model files are expected, multipart support should be prioritized.
 
-- **CommitResponse completeness.** The `huggingface_hub` Python client reads `commitOid` from the response, which is present. However, some client codepaths may also check `success`. Adding the missing fields is low-effort.
+- **CommitResponse completeness.** `commitOid` is present, so the core response shape is already useful. OpenXet also returns `success` and `hookOutput`; if later compatibility testing shows callers expect them, adding those fields would be a small follow-up.
 
 - **Token revocation.** Soft revocation (marking a token as inactive without deleting it) is useful for audit trails. Consider adding a revoke endpoint alongside the existing hard delete.
 
