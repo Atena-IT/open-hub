@@ -1,4 +1,4 @@
-# Round 2 Comparison -- `cas`
+# Round 2 Comparison — `cas`
 
 **OpenXet commit:** `a5b6dfcdf5e806a5a29cb893f0d79d733bea309b`
 **Analyst:** DiTo97
