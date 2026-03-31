@@ -48,7 +48,7 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 | `hf_router()` (HF-compatible API) | `covered` | `hub_api::hub_router()` at `main.rs:64` | Equivalent scope: whoami, repos, tree, preupload, commit, resolve |
 | `git_router()` (Git Smart HTTP) | `missing` | — | xet-backend has no Git Smart HTTP protocol (no upload-pack / receive-pack) |
 | `web_ui::router()` (server-rendered pages) | `covered` | `web_ui::web_router()` at `main.rs:66` | Tera templates; similar route set but smaller scope |
-| LFS batch API (part of `api` module in OpenXet) | `covered` | `hub_api::lfs_router()` at `main.rs:65` | Structural divergence: OpenXet bundles LFS routes inside the `api` module; xet-backend extracts them into a dedicated LFS router |
+| LFS batch API (part of `api` module in OpenXet) | `partial` | `hub_api::lfs_router()` at `main.rs:65` | Structural divergence: OpenXet bundles LFS routes inside the `api` module; xet-backend extracts them into a dedicated LFS router |
 | Security headers (X-Frame-Options, CSP, etc.) | `missing` | — | xet-backend applies only `TraceLayer`; no security headers in the composition root |
 | `DefaultBodyLimit::max(10 GiB)` | `missing` | — | No explicit body limit configured; relies on Axum defaults |
 | Tracing initialisation (`EnvFilter`, debug defaults) | `covered` | `main.rs:13-19` | Uses `tracing_subscriber::fmt` with `EnvFilter`; defaults to `LOG_LEVEL` env var (default `info`) vs OpenXet's `debug` |
@@ -78,6 +78,8 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 - **Registration gating (`DISABLE_REGISTRATION`).** OpenXet can disable new user registration via an env var. xet-backend's `/api/auth/register` is always available.
 
 ### Partial
+
+- **LFS router structure.** OpenXet bundles LFS batch API routes inside its `api` module alongside other HF-compatible endpoints. xet-backend extracts them into a dedicated `hub_api::lfs_router()` merged separately in `main.rs:65`. The endpoint capabilities are equivalent (batch, upload, download, verify), but the routing structure diverges because xet-backend has no `git_router()` and treats LFS as an independent composition unit.
 
 - **Shared state model.** OpenXet uses a single `AppState` struct (defined in `api::handlers`) that is passed to every handler. xet-backend splits this into three state types: `CasState` (pool + s3 + config), `HubState` (pool + s3 + config, constructed from shared `Arc`s), and `WebState` (HubState + Tera). All three share the same underlying `Arc<PgPool>` and `Arc<S3Client>`. The surface area is equivalent, but the boundaries are different: OpenXet's `AppState` contains domain objects (`RepositoryStore`, `CasStore`, `AuthManager`); xet-backend's state types contain only infrastructure handles (pool, s3, config).
 
