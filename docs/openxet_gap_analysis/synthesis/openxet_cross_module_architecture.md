@@ -18,7 +18,7 @@
 
 ## Purpose
 
-This document normalizes terminology across the eight Round 1 module maps and constructs a dependency-aware architectural view of OpenXet. It explains how the eight modules compose into a single server binary, how requests flow through the layers, and how cross-cutting concerns (error propagation, persistence, auth, background work) are handled. The findings here are the primary input for Round 2 comparisons, which will evaluate how closely xet-backend's own design mirrors or diverges from this architecture.
+This document normalizes terminology across the eight Round 1 module maps and constructs a dependency-aware architectural view of OpenXet. It explains how the eight modules compose into a single server binary, how requests flow through the layers, and how cross-cutting concerns (error propagation, persistence, auth, background work) are handled. The findings here are the primary input for Round 2 comparisons, which will evaluate later implementation and architecture differences against this normalized OpenXet baseline.
 
 ## Methodology
 
@@ -188,7 +188,7 @@ Both domains expose dual construction paths (`with_storage_path` / `with_db`) an
 
 **`storage` module.** A pure trait abstraction (`StorageBackend`) with 10 async methods covering get, put, delete, range-read, list, stream, file-level I/O, size, and exists. Two implementations are provided: `LocalStorage` (sharded two-level directory tree) and `S3Storage` (AWS/MinIO/R2). The module has no OpenXet module imports — it is the lowest leaf. Key constraints: no atomic writes on `LocalStorage` (no write-then-rename), single-part S3 upload only (no multipart; 5 GiB object limit), S3 NotFound detection via string matching (fragile). The `REPO_META` namespace is declared but has no callers.
 
-**`db` module.** Provides `init_database` (schema bootstrap) and 19 SeaORM entity types. The schema is defined entirely as inline raw SQL (18 `CREATE TABLE IF NOT EXISTS` plus accompanying indexes); there is no migration framework. In-place schema evolution uses unconditional `ALTER TABLE ADD COLUMN` calls with silent error suppression. Five entity groups serve different consumers:
+**`db` module.** Provides `init_database` (schema bootstrap) and 18 SeaORM entity types. The schema is defined entirely as inline raw SQL (18 `CREATE TABLE IF NOT EXISTS` plus accompanying indexes); there is no migration framework. In-place schema evolution uses unconditional `ALTER TABLE ADD COLUMN` calls with silent error suppression. Five entity groups serve different consumers:
 - Core entities: `user`, `org_member`, `repository`, `access_token` → consumed by `api::auth`
 - Git entities: `git_ref`, `git_object` → consumed by `git::storage`
 - CAS entities: `cas_block`, `cas_chunk`, `file_segment`, `lfs_object`, `lfs_chunk` → consumed by `cas::store`
@@ -200,7 +200,7 @@ Community entities reference repositories via a bare `repo_name TEXT` column wit
 
 ### Cross-cutting: `error` module
 
-`ServerError` is a 13-variant `thiserror`-derived enum with `IntoResponse` implemented for axum. It is the single shared error type for the entire server. All OpenXet modules other than `storage` and `db` import `crate::error::{Result, ServerError}`.
+`ServerError` is a 13-variant `thiserror`-derived enum with `IntoResponse` implemented for axum. It is the single shared error type for the entire server. Direct importers identified in the Round 1 maps are `api::auth`, `api::handlers`, `cas::store`, `git::storage`, `git::pack`, and `git::protocol`; the rest of the stack depends on it transitively through those modules.
 
 Key behavioral properties that affect all layers:
 - Internal errors (variants `Internal` and `Io`) are masked to the string `"Internal server error"` in HTTP responses; detailed messages reach only the tracing log.
