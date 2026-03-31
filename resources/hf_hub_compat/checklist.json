@@ -13,7 +13,7 @@
   "non_goals": [
     "spaces",
     "inference",
-    "jobs",
+    "jobs_full_compute",
     "community_beyond_repo_compat",
     "buckets_unless_promoted"
   ],
@@ -254,6 +254,38 @@
         "Full tests/integration/hf_hub suite passes locally",
         "Relevant smoke scripts still pass when overlapping behavior changes",
         "Rust tests pass if server code changes",
+        "GitHub Actions are green for the batch PR"
+      ]
+    },
+    {
+      "id": "batch7",
+      "title": "Jobs API mocked stub",
+      "status": "planned",
+      "scope": [
+        "Mocked in-memory stub for the full HF Jobs API CLI surface",
+        "One-off jobs: run_job, list_jobs, inspect_job, fetch_job_logs, fetch_job_metrics, cancel_job",
+        "Hardware catalogue: list_jobs_hardware",
+        "Scheduled jobs: create_scheduled_job, list_scheduled_jobs, inspect_scheduled_job, suspend_scheduled_job, resume_scheduled_job, delete_scheduled_job",
+        "Jobs stored in-memory, immediately placed in QUEUED stage, no actual compute"
+      ],
+      "upstream_modules": [
+        "tests/test_jobs.py"
+      ],
+      "local_test_files": [
+        "tests/integration/hf_hub/test_jobs_stub_batch7.py"
+      ],
+      "server_surfaces": [
+        "crates/hub-api/src/routes/jobs.rs",
+        "crates/hub-api/src/routes/mod.rs",
+        "crates/hub-api/src/state.rs"
+      ],
+      "issue": null,
+      "pr": null,
+      "depends_on": ["batch6"],
+      "exit_criteria": [
+        "All test_jobs_stub_batch7.py tests pass locally against the running server",
+        "Full tests/integration/hf_hub suite passes locally",
+        "Rust tests pass (cargo test --workspace)",
         "GitHub Actions are green for the batch PR"
       ]
     }
