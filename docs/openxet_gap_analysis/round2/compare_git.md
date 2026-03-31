@@ -101,7 +101,7 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 - **Ref CRUD operations.** `create_ref`, `delete_ref`, `list_refs`, and `find_ref_by_name` in `repo_refs.rs` provide the same logical operations as `Repository::update_ref`, `delete_ref`, `list_refs`, and `resolve_ref`. The implementation is DB-primary (synchronous, with error propagation) rather than in-memory-primary (fire-and-forget async DB writes), which is architecturally stronger for data integrity.
 
-- **Revision resolution.** `resolve_repo_revision` in `auth.rs` resolves `"main"` to `head_sha`, checks if the revision matches `head_sha` directly, then falls back to named ref lookup. This covers the primary use case for the `huggingface_hub` client.
+- **Revision resolution.** `resolve_repo_revision` in `auth.rs` resolves `"main"` to `head_sha`, checks if the revision matches `head_sha` directly, then falls back to named ref lookup. This covers the revision-resolution path exercised by the current `huggingface_hub` compatibility slice in this repo.
 
 - **Branch and tag management.** The Hub API exposes `create_branch`, `delete_branch`, `create_tag`, `delete_tag` via `/api/{type}s/{owner}/{repo}/branch/{name}` and `/api/{type}s/{owner}/{repo}/tag/{value}`. These are fully implemented and tested.
 
@@ -111,7 +111,7 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 - **Git Smart HTTP protocol (upload-pack, receive-pack, ref advertisement).** xet-backend is explicitly a HuggingFace Hub-compatible server, not a general-purpose git server. File operations use the HF API (NDJSON commit, tree listing, resolve). The xet-core client handles CAS-level data transfer via the separate CAS protocol (`/v1/xorbs`, `/v1/shards`, `/v1/reconstructions`). Adding Git Smart HTTP would require implementing the full git object model first. Per the project roadmap, this is not a current compatibility target.
 
-- **Pack file generation and parsing.** Without Git Smart HTTP, there is no consumer for pack files. The `huggingface_hub` Python library does not use git pack protocol.
+- **Pack file generation and parsing.** Without Git Smart HTTP, there is no current consumer for pack files in the compatibility slice exercised here.
 
 - **Delta compression (OFS_DELTA, REF_DELTA).** Relevant only to Git Smart HTTP pack exchange.
 
@@ -121,7 +121,7 @@ Status values: `covered` | `partial` | `missing` | `out-of-scope`
 
 ## Recommendations for synthesis
 
-- **The absence of Git Smart HTTP is not a gap for the current HF Hub compatibility target.** The `huggingface_hub` Python library does not use `git clone`/`git push`. It uses the HF API for commits, tree listing, and file resolution, all of which xet-backend implements. This should be explicitly documented as a design boundary, not a missing feature.
+- **The absence of Git Smart HTTP is not a gap for the current HF Hub compatibility target.** The compatibility slice exercised in this repo uses the HF API for commits, tree listing, and file resolution rather than native `git clone`/`git push` flows, and xet-backend implements that surface. This should be explicitly documented as a design boundary, not a missing feature.
 
 - **Commit integrity.** xet-backend's synthetic commit SHA (`SHA256(timestamp:message)[..40]`) is a weak identifier: it has no relationship to the commit content, no tree reference, and is truncated. If commit SHAs are ever used for deduplication, caching, or cross-system references, they should be derived from actual commit content (files, parent, metadata). This is a low-priority improvement unless commit portability is needed.
 
